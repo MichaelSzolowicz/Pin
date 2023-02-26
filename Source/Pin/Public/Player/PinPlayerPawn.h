@@ -10,14 +10,37 @@ class PIN_API APinPlayerPawn : public APawn
 	GENERATED_BODY()
 
 protected:
+/*
+*	Properties for player tracking.
+*/
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Index")
 		int32 PlayerIndex;
 
+/*
+*	Physics related properties.
+*/
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "PhysicsBody")
+		class UPhysicsBodyComponent* PhysicsBody;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PhysicsBody")
+		float ScaleInputTorque = 50.0f;
+
 public:	
+	APinPlayerPawn(const FObjectInitializer & ObjectInitializer);
 
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
+	virtual void Tick(float DeltaSeconds) override;
+
+protected:
+	UFUNCTION(BlueprintCallable)
+		void RollBody();
+
+public:
+/*
+*	Get / Set.
+*/
 	UFUNCTION(BlueprintCallable)
 		int32 GetPlayerIndex() { return PlayerIndex; }
 	UFUNCTION(BlueprintCallable)

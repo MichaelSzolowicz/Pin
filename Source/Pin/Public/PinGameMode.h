@@ -33,6 +33,9 @@ protected:
 		int32 MaxPlayerIndex;
 
 public:
+/*
+*	Functions for entering new matches.
+*/
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable)
 		void StartMatch();
 

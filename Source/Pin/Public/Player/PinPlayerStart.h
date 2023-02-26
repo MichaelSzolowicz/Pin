@@ -12,6 +12,9 @@ class PIN_API APinPlayerStart : public AActor
 	GENERATED_BODY()
 	
 public:	
+/*
+*	Properties for player tracking.
+*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Index")
 		int32 PlayerIndex;
 
