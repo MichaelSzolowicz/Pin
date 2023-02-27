@@ -36,7 +36,7 @@ public:
 /** Functions for entering new matches. */
 	/***/
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable)
-		void SpawnPlayerPawn();
+		void SpawnPlayerPawns();
 
 	/***/
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable)
