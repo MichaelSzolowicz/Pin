@@ -33,12 +33,12 @@ protected:
 		int32 MaxPlayerIndex;
 
 public:
-/*
-*	Functions for entering new matches.
-*/
+/** Functions for entering new matches. */
+	/** Game needs one player by default, check if engine has already spawned a controller then assign a pawn. */
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable)
-		void StartMatch();
+		void InitFirstPlayer();
 
+	/** Create a player for each index in MaxPlayerIndex which doesn't have a controller. */
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable)
 		void SpawnRemainingPlayers();
 	
