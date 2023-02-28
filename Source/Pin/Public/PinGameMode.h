@@ -22,7 +22,7 @@ protected:
 /*
 *	Properties for player tracking.
 */
-
+	/** I am no longer tracking player pawns since player controllers alrady have a reference to their pawn. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PlayerTracking")
 		TArray<APinPlayerPawn*> PlayerPawnArray;
 
@@ -34,12 +34,15 @@ protected:
 
 public:
 /** Functions for entering new matches. */
-	/***/
-	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable)
+	/** Spawn a player pawn for each player controller for which there exists a player start of the same player index. */
+	UFUNCTION(BlueprintCallable)
 		void SpawnPlayerPawns();
 
-	/***/
-	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable)
+	/** Create a player controller for each index in MaxPlayerIndex which does not have a controller. */
+	UFUNCTION(BlueprintCallable)
 		void CreateRemainingControllers();
+
+	UFUNCTION(BlueprintCallable)
+		void CleanupPlayerControllers();
 	
 };

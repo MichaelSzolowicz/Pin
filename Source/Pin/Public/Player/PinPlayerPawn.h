@@ -26,6 +26,7 @@ protected:
 		float ScaleInputTorque = 50.0f;
 
 public:	
+
 	APinPlayerPawn(const FObjectInitializer & ObjectInitializer);
 
 	// Called to bind functionality to input

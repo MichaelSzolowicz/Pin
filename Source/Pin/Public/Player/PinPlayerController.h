@@ -4,6 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+
+#include "Player/PinPlayerPawn.h"
+
 #include "PinPlayerController.generated.h"
 
 /**
@@ -22,6 +25,9 @@ protected:
 		int32 PlayerIndex;	
 
 public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pawn")
+		TSubclassOf<APinPlayerPawn> PlayerPawnClass;
+
 /*
 *	Get / Set.
 */
