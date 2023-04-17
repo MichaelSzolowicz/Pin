@@ -5,7 +5,7 @@
 APinPlayerPawn::APinPlayerPawn(const FObjectInitializer & ObjectInitializer)
 {
 	PhysicsBody = CreateDefaultSubobject<UPhysicsBodyComponent>(TEXT("PhysicsBody"));
-	PhysicsBody->SetupAttachment(RootComponent);
+	RootComponent = PhysicsBody;
 }
 
 // Called to bind functionality to input
@@ -21,7 +21,7 @@ void APinPlayerPawn::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
-	RollBody();
+	
 }
 
 void APinPlayerPawn::RollBody()
