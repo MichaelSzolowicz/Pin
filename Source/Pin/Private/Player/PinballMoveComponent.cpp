@@ -6,6 +6,7 @@ void UPinballMoveComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
+	InverseMass = 1 / Mass;
 	Velocity = FVector::Zero();
 }
 
@@ -14,7 +15,12 @@ void UPinballMoveComponent::TickComponent(float DeltaTime, enum ELevelTick TickT
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	UpdatePhysics(DeltaTime);
+	UpdatePhysicsWithImpulse(DeltaTime);
+
+	AActor* Owner = Cast<AActor>(GetOwner());
+	FVector UeVelocity = Owner->GetVelocity();
+
+	UE_LOG(LogTemp, Warning, TEXT("Owner: %s velocity: %s"), *Owner->GetName(), *UeVelocity.ToString());
 }
 
 
@@ -81,6 +87,76 @@ void UPinballMoveComponent::UpdatePhysics(float DeltaTime)
 
 	//UE_LOG(LogTemp, Warning, TEXT("Velocity: %s"), *Velocity.ToString());
 	//UE_LOG(LogTemp, Warning, TEXT("%f"), Velocity.Size());
+}
+
+void UPinballMoveComponent::UpdatePhysicsWithImpulse(float DeltaTime)
+{
+	CalcGravity();
+
+	// Delta position
+	FVector d = Velocity * DeltaTime;
+	FVector dx = FVector(d.X, 0, 0);
+	FVector dy = FVector(0, d.Y, 0);
+	FVector dz = FVector(0, 0, d.Z);
+	
+	// Update our position
+	FHitResult Hit;
+	SafeMoveUpdatedComponent(dx, UpdatedComponent->GetComponentRotation(), true, Hit);
+
+	// Handle overlaps
+	if (Hit.IsValidBlockingHit())
+	{
+		ResolveCollision(Hit);
+		SlideAlongSurface(dx, 1.f - Hit.Time, Hit.Normal, Hit);
+	}
+
+	// Y move
+	SafeMoveUpdatedComponent(dy, UpdatedComponent->GetComponentRotation(), true, Hit);
+
+	// Handle overlaps
+	if (Hit.IsValidBlockingHit())
+	{
+		ResolveCollision(Hit);
+		SlideAlongSurface(dy, 1.f - Hit.Time, Hit.Normal, Hit);
+	}
+
+	// Z move
+	SafeMoveUpdatedComponent(dz, UpdatedComponent->GetComponentRotation(), true, Hit);
+
+	// Handle overlaps
+	if (Hit.IsValidBlockingHit())
+	{
+		ResolveCollision(Hit);
+		SlideAlongSurface(dz, 1.f - Hit.Time, Hit.Normal, Hit);
+	}
+
+	//UE_LOG(LogTemp, Warning, TEXT("Velocity: %s"), *Velocity.ToString());
+
+	Velocity += AccumulatedForce * DeltaTime;
+
+
+
+	AccumulatedForce = FVector::Zero();
+}
+
+void UPinballMoveComponent::ResolveCollision(FHitResult Hit)
+{
+	// This movement component does not affect the velocity of the actor, I will need to find a different way to reliably get velocity from all types of actor.
+	FVector rv = Hit.GetActor()->GetVelocity() - Velocity;
+
+	float velAlongNormal = FVector::DotProduct(rv, Hit.Normal);
+
+	if (velAlongNormal < 0) return;
+
+	float e = FMath::Min(restitution, .5f);	/** Need a reliable way to get the restitution for other objects. **/
+
+	// actual impulse.
+	float J = -(1 + e) * velAlongNormal;
+	J /= InverseMass + 0;	/* Need a reliable way to get the inverse mass for other objects. */
+
+	// Apply impulse
+	FVector Impulse = J * Hit.Normal;
+	Velocity -= InverseMass * Impulse;
 }
 
 

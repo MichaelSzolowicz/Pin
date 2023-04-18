@@ -16,12 +16,19 @@ class PIN_API UPinballMoveComponent : public UMovementComponent
 public:
 	FVector AccumulatedForce;
 	FVector Velocity;
+	float Mass = 100.f;
+	float InverseMass;
+	float restitution = 1.f;
 
 	virtual void BeginPlay() override;
 
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 	void UpdatePhysics(float DeltaTime);
+
+	void UpdatePhysicsWithImpulse(float DeltaTime);
+
+	void ResolveCollision(FHitResult Hit);
 
 	void CalcGravity();
 
