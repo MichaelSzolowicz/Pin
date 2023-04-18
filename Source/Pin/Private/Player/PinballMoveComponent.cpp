@@ -24,11 +24,12 @@ void UPinballMoveComponent::UpdatePhysics(float DeltaTime)
 
 	// Delta position
 	FVector d = Velocity * DeltaTime;
+	FVector dx = FVector(d.X, d.Y, 0);
+	FVector dz = FVector(0, 0, d.Z);
 
-
-
+	// horizontal move
 	FHitResult OutHit;
-	SafeMoveUpdatedComponent(d, UpdatedComponent->GetComponentRotation(), true, OutHit);
+	SafeMoveUpdatedComponent(dx, UpdatedComponent->GetComponentRotation(), true, OutHit);
 
 	DrawDebugPoint(GetWorld(), OutHit.ImpactPoint, 20.f, FColor::Red, true, .01f);
 
@@ -38,8 +39,22 @@ void UPinballMoveComponent::UpdatePhysics(float DeltaTime)
 		AccumulatedForce += OutHit.Normal * (FVector::DotProduct((-Velocity / DeltaTime), OutHit.Normal));
 
 		//UE_LOG(LogTemp, Warning, TEXT("Force: %s"), *AccumulatedForce.ToString());
+		SlideAlongSurface(dx, 1.f - OutHit.Time, OutHit.Normal, OutHit);
+	}
 
-		SlideAlongSurface(d, 1.f - OutHit.Time, OutHit.Normal, OutHit);
+	// vertical move
+	SafeMoveUpdatedComponent(dz, UpdatedComponent->GetComponentRotation(), true, OutHit);
+
+	DrawDebugPoint(GetWorld(), OutHit.ImpactPoint, 20.f, FColor::Green, true, .01f);
+
+	if (OutHit.IsValidBlockingHit())
+	{
+		// Normal force
+		AccumulatedForce += OutHit.Normal * (FVector::DotProduct((-Velocity / DeltaTime), OutHit.Normal));
+
+		UE_LOG(LogTemp, Warning, TEXT("Force: %s"), *AccumulatedForce.ToString());
+
+		SlideAlongSurface(dz, 1.f - OutHit.Time, OutHit.Normal, OutHit);
 
 	}
 
@@ -62,4 +77,11 @@ void UPinballMoveComponent::CalcGravity()
 void UPinballMoveComponent::AddForce(FVector Force)
 {
 	AccumulatedForce += Force;
+}
+
+float UPinballMoveComponent::AngleBetweenVectors(FVector v1, FVector v2)
+{
+	float Dot = FVector::DotProduct(v1, v2);
+	float Mag = v1.Size() * v2.Size();
+	return PI - (Dot / Mag);
 }

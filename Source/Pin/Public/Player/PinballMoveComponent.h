@@ -27,5 +27,7 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void AddForce(FVector Force);
+
+	float AngleBetweenVectors(FVector v1, FVector v2);
 	
 };
