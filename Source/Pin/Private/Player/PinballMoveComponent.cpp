@@ -24,10 +24,13 @@ void UPinballMoveComponent::UpdatePhysics(float DeltaTime)
 
 	// Delta position
 	FVector d = Velocity * DeltaTime;
-	FVector dx = FVector(d.X, d.Y, 0);
+	FVector dx = FVector(d.X, 0, 0);
+	FVector dy = FVector(0, d.Y, 0);
 	FVector dz = FVector(0, 0, d.Z);
 
-	// horizontal move
+	FVector N = FVector::Zero();
+
+	// x move
 	FHitResult OutHit;
 	SafeMoveUpdatedComponent(dx, UpdatedComponent->GetComponentRotation(), true, OutHit);
 
@@ -36,27 +39,40 @@ void UPinballMoveComponent::UpdatePhysics(float DeltaTime)
 	if (OutHit.IsValidBlockingHit())
 	{	
 		// Normal force
-		AccumulatedForce += OutHit.Normal * (FVector::DotProduct((-Velocity / DeltaTime), OutHit.Normal));
+		N += OutHit.Normal * FVector::DotProduct((-Velocity / DeltaTime), OutHit.Normal);
 
-		//UE_LOG(LogTemp, Warning, TEXT("Force: %s"), *AccumulatedForce.ToString());
 		SlideAlongSurface(dx, 1.f - OutHit.Time, OutHit.Normal, OutHit);
 	}
 
-	// vertical move
-	SafeMoveUpdatedComponent(dz, UpdatedComponent->GetComponentRotation(), true, OutHit);
+	// y move
+	SafeMoveUpdatedComponent(dy, UpdatedComponent->GetComponentRotation(), true, OutHit);
 
 	DrawDebugPoint(GetWorld(), OutHit.ImpactPoint, 20.f, FColor::Green, true, .01f);
 
 	if (OutHit.IsValidBlockingHit())
 	{
 		// Normal force
-		AccumulatedForce += OutHit.Normal * (FVector::DotProduct((-Velocity / DeltaTime), OutHit.Normal));
+		N += OutHit.Normal * FVector::DotProduct((-Velocity / DeltaTime), OutHit.Normal);
 
-		UE_LOG(LogTemp, Warning, TEXT("Force: %s"), *AccumulatedForce.ToString());
+		SlideAlongSurface(dy, 1.f - OutHit.Time, OutHit.Normal, OutHit);
+	}
+
+	// z move
+	SafeMoveUpdatedComponent(dz, UpdatedComponent->GetComponentRotation(), true, OutHit);
+
+	DrawDebugPoint(GetWorld(), OutHit.ImpactPoint, 20.f, FColor::Blue, true, .01f);
+
+	if (OutHit.IsValidBlockingHit())
+	{
+		// Normal force
+		N += OutHit.Normal * FVector::DotProduct((-Velocity / DeltaTime), OutHit.Normal);
 
 		SlideAlongSurface(dz, 1.f - OutHit.Time, OutHit.Normal, OutHit);
-
 	}
+
+	N.Normalize();
+	N *= FVector::DotProduct((-Velocity / DeltaTime), N);
+	AccumulatedForce += N;
 
 	// Acting forces (ignore mass for now, force acts as acceleration)
 	Velocity += AccumulatedForce * DeltaTime;
