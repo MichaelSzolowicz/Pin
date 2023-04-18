@@ -2,6 +2,9 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Pawn.h"
+
+#include "Components/CapsuleComponent.h"
+
 #include "PinPlayerPawn.generated.h"
 
 UCLASS()
@@ -21,6 +24,9 @@ protected:
 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "PhysicsBody")
 		class UPhysicsBodyComponent* PhysicsBody;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "PhysicsBody")
+		class UCapsuleComponent* Capsule;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PhysicsBody")
 		float ScaleInputTorque = 50.0f;

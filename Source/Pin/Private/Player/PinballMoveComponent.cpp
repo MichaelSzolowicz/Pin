@@ -1,7 +1,13 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "Player/PinballMoveComponent.h"
+
+#include "DrawDebugHelpers.h"
+
+void UPinballMoveComponent::BeginPlay()
+{
+	Super::BeginPlay();
+
+	Velocity = FVector::Zero();
+}
 
 
 void UPinballMoveComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -11,55 +17,49 @@ void UPinballMoveComponent::TickComponent(float DeltaTime, enum ELevelTick TickT
 	UpdatePhysics(DeltaTime);
 }
 
-void UPinballMoveComponent::BeginPlay()
-{
-	Super::BeginPlay();
-
-	Velocity = FVector::Zero();
-
-	FRotator NewRot = FRotator(-10, 0, 0);
-	UpdatedComponent->SetWorldRotation(NewRot, true);
-}
-
 
 void UPinballMoveComponent::UpdatePhysics(float DeltaTime)
 {
-	static bool bGate = true;
-	if (GetOwner()->GetLocalRole() <= ENetRole::ROLE_AutonomousProxy) return;
+	CalcGravity();
 
-	float m = 100;
-	float g = GetWorld()->GetGravityZ();
+	// Delta position
+	FVector d = Velocity * DeltaTime;
 
-	Velocity -= FVector::DownVector * g * DeltaTime;
-	FVector dx = Velocity * DeltaTime;
+
 
 	FHitResult OutHit;
-	SafeMoveUpdatedComponent(dx, UpdatedComponent->GetComponentRotation(), true, OutHit);
+	SafeMoveUpdatedComponent(d, UpdatedComponent->GetComponentRotation(), true, OutHit);
+
+	DrawDebugPoint(GetWorld(), OutHit.ImpactPoint, 20.f, FColor::Red, true, .01f);
+
 	if (OutHit.IsValidBlockingHit())
 	{	
-		Velocity -= FVector::DownVector * g * DeltaTime * -1;
-		FVector N = FMath::Cos(.52f) * g * OutHit.Normal;
-		Velocity -= N * DeltaTime;
+		// Normal force
+		AccumulatedForce += OutHit.Normal * (FVector::DotProduct((-Velocity / DeltaTime), OutHit.Normal));
 
-		SlideAlongSurface(dx, 1.f - OutHit.Time, OutHit.ImpactNormal, OutHit);
+		//UE_LOG(LogTemp, Warning, TEXT("Force: %s"), *AccumulatedForce.ToString());
+
+		SlideAlongSurface(d, 1.f - OutHit.Time, OutHit.Normal, OutHit);
+
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("%s"), *Velocity.ToString());
+	// Acting forces (ignore mass for now, force acts as acceleration)
+	Velocity += AccumulatedForce * DeltaTime;
+
+	AccumulatedForce = FVector::Zero();
+
+	//UE_LOG(LogTemp, Warning, TEXT("Velocity: %s"), *Velocity.ToString());
+	//UE_LOG(LogTemp, Warning, TEXT("%f"), Velocity.Size());
 }
 
 
 void UPinballMoveComponent::CalcGravity()
 {
-	float g = GetWorld()->GetGravityZ();
-	float m = 100;
-
-
-	AccumulatedForce += FVector(0, 0, m * g);
+	// Ignore mass (for the time being)
+	AccumulatedForce += FVector(0, 0, GetWorld()->GetGravityZ());
 }
 
-float UPinballMoveComponent::AngleBetweenVectors(FVector v1, FVector v2)
+void UPinballMoveComponent::AddForce(FVector Force)
 {
-	float dot = FVector::DotProduct(v1, v2);
-	float mag = v1.Size() * v2.Size();
-	return mag;
+	AccumulatedForce += Force;
 }

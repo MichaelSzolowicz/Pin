@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/MovementComponent.h"
+
 #include "PinballMoveComponent.generated.h"
 
 /**
@@ -14,9 +15,7 @@ class PIN_API UPinballMoveComponent : public UMovementComponent
 
 public:
 	FVector AccumulatedForce;
-	float LinearDrag = 1.0f;
 	FVector Velocity;
-	FVector Acceleration;
 
 	virtual void BeginPlay() override;
 
@@ -26,6 +25,7 @@ public:
 
 	void CalcGravity();
 
-	float AngleBetweenVectors(FVector v1, FVector v2);
+	UFUNCTION(BlueprintCallable)
+	void AddForce(FVector Force);
 	
 };

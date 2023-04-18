@@ -4,8 +4,13 @@
 
 APinPlayerPawn::APinPlayerPawn(const FObjectInitializer & ObjectInitializer)
 {
+	
+
+	Capsule = CreateDefaultSubobject<UCapsuleComponent>(TEXT("Capsule"));
+	RootComponent = Capsule;
+
 	PhysicsBody = CreateDefaultSubobject<UPhysicsBodyComponent>(TEXT("PhysicsBody"));
-	RootComponent = PhysicsBody;
+	PhysicsBody->SetupAttachment(RootComponent);
 }
 
 // Called to bind functionality to input
