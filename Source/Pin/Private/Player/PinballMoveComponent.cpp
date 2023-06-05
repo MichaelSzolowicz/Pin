@@ -17,13 +17,14 @@ void UPinballMoveComponent::TickComponent(float DeltaTime, enum ELevelTick TickT
 
 	UpdatePhysicsWithImpulse(DeltaTime);
 
+	/*TESTONLY*/
 	AActor* Owner = Cast<AActor>(GetOwner());
-	FVector UeVelocity = Owner->GetVelocity();
-
-	UE_LOG(LogTemp, Warning, TEXT("Owner: %s velocity: %s"), *Owner->GetName(), *UeVelocity.ToString());
+	FVector LogVelocity = Owner->GetVelocity();
+	UE_LOG(LogTemp, Warning, TEXT("Owner: %s velocity: %s"), *Owner->GetName(), *LogVelocity.ToString());
+	/*ENDTEST*/
 }
 
-
+/*
 void UPinballMoveComponent::UpdatePhysics(float DeltaTime)
 {
 	CalcGravity();
@@ -88,6 +89,7 @@ void UPinballMoveComponent::UpdatePhysics(float DeltaTime)
 	//UE_LOG(LogTemp, Warning, TEXT("Velocity: %s"), *Velocity.ToString());
 	//UE_LOG(LogTemp, Warning, TEXT("%f"), Velocity.Size());
 }
+*/
 
 void UPinballMoveComponent::UpdatePhysicsWithImpulse(float DeltaTime)
 {
@@ -100,6 +102,7 @@ void UPinballMoveComponent::UpdatePhysicsWithImpulse(float DeltaTime)
 	FVector dz = FVector(0, 0, d.Z);
 	
 	// Update our position
+	// Moving each axis indepently helps ensure walls apply an opposing force, canceling out our velcotiy and prevent wall "sticking"
 	FHitResult Hit;
 	SafeMoveUpdatedComponent(dx, UpdatedComponent->GetComponentRotation(), true, Hit);
 
@@ -141,14 +144,14 @@ void UPinballMoveComponent::UpdatePhysicsWithImpulse(float DeltaTime)
 
 void UPinballMoveComponent::ResolveCollision(FHitResult Hit)
 {
-	// This movement component does not affect the velocity of the actor, I will need to find a different way to reliably get velocity from all types of actor.
+	// Assuming other actor is static, I will need to find a different way to reliably get velocity from all types of actor.
 	FVector rv = Hit.GetActor()->GetVelocity() - Velocity;
 
 	float velAlongNormal = FVector::DotProduct(rv, Hit.Normal);
 
 	if (velAlongNormal < 0) return;
 
-	float e = FMath::Min(restitution, .5f);	/** Need a reliable way to get the restitution for other objects. **/
+	float e = FMath::Min(restitution, .0f);	/** Need a reliable way to get the restitution for other objects. **/
 
 	// actual impulse.
 	float J = -(1 + e) * velAlongNormal;
