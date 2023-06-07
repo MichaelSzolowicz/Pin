@@ -35,5 +35,8 @@ public:
 		int32 GetPlayerIndex() { return PlayerIndex; }
 	UFUNCTION(BlueprintCallable)
 		void SetPlayerIndex(int32 NewIndex) { PlayerIndex = NewIndex; }
+
+	UFUNCTION()
+		virtual void OnPossess(APawn* InPawn) override;
 	
 };

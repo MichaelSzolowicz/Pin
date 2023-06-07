@@ -3,6 +3,8 @@
 #include "Kismet/GameplayStatics.h"
 #include "Player/PlayerStartContainer.h"
 #include "Player/PinPlayerPawn.h"
+#include "GameFramework/PlayerState.h"
+#include "GameFramework/GameStateBase.h"
 
 void AOnlineGameMode::PostLogin(APlayerController* NewPlayer)
 {
@@ -31,6 +33,12 @@ void AOnlineGameMode::PostLogin(APlayerController* NewPlayer)
 		APinPlayerPawn* NewPawn = GetWorld()->SpawnActor<APinPlayerPawn>(DefaultPlayerPawn, PlayerStarts[NumPlayers]->GetActorTransform());
 		if (NewPawn)
 		{
+			/* 
+			*	As long as the pawn is set to replicate, it will replicate itself with its controller to the client, causing the pawn
+			*	to get spawned on the client. Possess() eventually calls PossessedBy() on the pawn, which does set replication to true.
+			*	You can override the function inside your custom pawn class to change this behaviour. Setting the class / blueprint to
+			*	replicate will cause the pawn to always spawn on the client.
+			*/
 			NewPlayer->Possess(NewPawn);
 			NumPlayers++;
 		}

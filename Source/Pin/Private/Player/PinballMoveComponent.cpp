@@ -20,7 +20,7 @@ void UPinballMoveComponent::TickComponent(float DeltaTime, enum ELevelTick TickT
 	/*TESTONLY*/
 	AActor* Owner = Cast<AActor>(GetOwner());
 	FVector LogVelocity = Owner->GetVelocity();
-	UE_LOG(LogTemp, Warning, TEXT("Owner: %s velocity: %s"), *Owner->GetName(), *LogVelocity.ToString());
+	//UE_LOG(LogTemp, Warning, TEXT("Owner: %s velocity: %s"), *Owner->GetName(), *LogVelocity.ToString());
 	/*ENDTEST*/
 }
 

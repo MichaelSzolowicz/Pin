@@ -40,6 +40,10 @@ public:
 
 	virtual void Tick(float DeltaSeconds) override;
 
+
+	UFUNCTION()
+		virtual void PossessedBy(AController* NewController) override;
+
 protected:
 	UFUNCTION(BlueprintCallable)
 		void RollBody();
@@ -52,5 +56,6 @@ public:
 		int32 GetPlayerIndex() { return PlayerIndex; }
 	UFUNCTION(BlueprintCallable)
 		void SetPlayerIndex(int32 NewIndex) { PlayerIndex = NewIndex; }
+
 
 };

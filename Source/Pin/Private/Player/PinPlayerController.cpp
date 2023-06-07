@@ -3,3 +3,7 @@
 
 #include "Player/PinPlayerController.h"
 
+void APinPlayerController::OnPossess(APawn* InPawn)
+{
+	Super::OnPossess(InPawn);
+}
