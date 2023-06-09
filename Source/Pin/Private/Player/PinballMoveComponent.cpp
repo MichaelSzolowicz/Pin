@@ -95,12 +95,65 @@ void UPinballMoveComponent::UpdatePhysicsWithImpulse(float DeltaTime)
 {
 	CalcGravity();
 
+	FMove Move = FMove();
+	Move.Force = AccumulatedForce;
+	Move.DeltaTime = DeltaTime;
+	
+
+	APawn* Pawn = (APawn*)GetOwner();
+
+	if (Pawn && Pawn->Controller && Pawn->Controller->IsLocalPlayerController())
+	{
+		PerformMove(Move);
+	}
+	
+	if (GetNetMode() == NM_Client)
+	{
+		ServerPerformMove(Move);
+		
+	}
+	AccumulatedForce = FVector::Zero();
+
+}
+
+void UPinballMoveComponent::ResolveCollision(FHitResult Hit)
+{
+	// Assuming other actor is static, I will need to find a different way to reliably get velocity from all types of actor.
+	FVector rv = Hit.GetActor()->GetVelocity() - Velocity;
+
+	float velAlongNormal = FVector::DotProduct(rv, Hit.Normal);
+
+	if (velAlongNormal < 0) return;
+
+	float e = FMath::Min(restitution, .0f);	/** Need a reliable way to get the restitution for other objects. **/
+
+	// actual impulse.
+	float J = -(1 + e) * velAlongNormal;
+	J /= InverseMass + 0;	/* Need a reliable way to get the inverse mass for other objects. */
+
+	// Apply impulse
+	FVector Impulse = J * Hit.Normal;
+	Velocity -= InverseMass * Impulse;
+}
+
+
+void UPinballMoveComponent::CalcGravity()
+{
+	// Ignore mass (for the time being)
+	AccumulatedForce += FVector(0, 0, GetWorld()->GetGravityZ());
+}
+
+void UPinballMoveComponent::PerformMove(FMove Move)
+{
+	UE_LOG(LogTemp, Warning, TEXT("%s Perform Move"), GetNetMode() == NM_Client ? TEXT("Client") : TEXT("Server"));
+	UE_LOG(LogTemp, Warning, TEXT("%s"), *Velocity.ToString());
+
 	// Delta position
-	FVector d = Velocity * DeltaTime;
+	FVector d = Velocity * Move.DeltaTime;
 	FVector dx = FVector(d.X, 0, 0);
 	FVector dy = FVector(0, d.Y, 0);
 	FVector dz = FVector(0, 0, d.Z);
-	
+
 	// Update our position
 	// Moving each axis indepently helps ensure walls apply an opposing force, canceling out our velcotiy and prevent wall "sticking"
 	FHitResult Hit;
@@ -135,38 +188,17 @@ void UPinballMoveComponent::UpdatePhysicsWithImpulse(float DeltaTime)
 
 	//UE_LOG(LogTemp, Warning, TEXT("Velocity: %s"), *Velocity.ToString());
 
-	Velocity += AccumulatedForce * DeltaTime;
-
-
+	Velocity += Move.Force * Move.DeltaTime;
 
 	AccumulatedForce = FVector::Zero();
 }
 
-void UPinballMoveComponent::ResolveCollision(FHitResult Hit)
+void UPinballMoveComponent::ServerPerformMove_Implementation(FMove Move)
 {
-	// Assuming other actor is static, I will need to find a different way to reliably get velocity from all types of actor.
-	FVector rv = Hit.GetActor()->GetVelocity() - Velocity;
+	//UE_LOG(LogTemp, Warning, TEXT("%s"), GetNetMode() == NM_Client ? TEXT("Client") : TEXT("Server"));
+	//UE_LOG(LogTemp, Warning, TEXT("%f"), Move.DeltaTime);
 
-	float velAlongNormal = FVector::DotProduct(rv, Hit.Normal);
-
-	if (velAlongNormal < 0) return;
-
-	float e = FMath::Min(restitution, .0f);	/** Need a reliable way to get the restitution for other objects. **/
-
-	// actual impulse.
-	float J = -(1 + e) * velAlongNormal;
-	J /= InverseMass + 0;	/* Need a reliable way to get the inverse mass for other objects. */
-
-	// Apply impulse
-	FVector Impulse = J * Hit.Normal;
-	Velocity -= InverseMass * Impulse;
-}
-
-
-void UPinballMoveComponent::CalcGravity()
-{
-	// Ignore mass (for the time being)
-	AccumulatedForce += FVector(0, 0, GetWorld()->GetGravityZ());
+	PerformMove(Move);
 }
 
 void UPinballMoveComponent::AddForce(FVector Force)

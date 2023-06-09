@@ -18,6 +18,12 @@ void AOnlineGameMode::PostLogin(APlayerController* NewPlayer)
 		UE_LOG(LogTemp, Warning, TEXT("%s"), *PlayerPawn->GetName());
 	/*ENDTEST*/
 
+	SpawnPlayer(NewPlayer);
+
+}
+
+void AOnlineGameMode::SpawnPlayer_Implementation(APlayerController* NewPlayer)
+{
 	// Get the payer starts
 	TArray<AActor*> PlayerStarts;
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), APlayerStartContainer::StaticClass(), PlayerStarts);
@@ -33,7 +39,7 @@ void AOnlineGameMode::PostLogin(APlayerController* NewPlayer)
 		APinPlayerPawn* NewPawn = GetWorld()->SpawnActor<APinPlayerPawn>(DefaultPlayerPawn, PlayerStarts[NumPlayers]->GetActorTransform());
 		if (NewPawn)
 		{
-			/* 
+			/*
 			*	As long as the pawn is set to replicate, it will replicate itself with its controller to the client, causing the pawn
 			*	to get spawned on the client. Possess() eventually calls PossessedBy() on the pawn, which does set replication to true.
 			*	You can override the function inside your custom pawn class to change this behaviour. Setting the class / blueprint to
@@ -43,5 +49,4 @@ void AOnlineGameMode::PostLogin(APlayerController* NewPlayer)
 			NumPlayers++;
 		}
 	}
-
 }

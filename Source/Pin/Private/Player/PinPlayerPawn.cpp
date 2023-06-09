@@ -32,39 +32,10 @@ void APinPlayerPawn::Tick(float DeltaSeconds)
 void APinPlayerPawn::PossessedBy(AController* NewController)
 {
 	UE_LOG(LogTemp, Warning, TEXT("PossessedBy Override"));
+	Super::PossessedBy(NewController);
 
 	SetOwner(NewController);
-
-	AController* const OldController = Controller;
-
-	Controller = NewController;
-	//ForceNetUpdate();
-
-	if (Controller->PlayerState != nullptr)
-	{
-		SetPlayerState(Controller->PlayerState);
-	}
-
-	if (APlayerController* PlayerController = Cast<APlayerController>(Controller))
-	{
-		if (GetNetMode() != NM_Standalone)
-		{
-			//SetReplicates(true);
-			SetAutonomousProxy(true);
-		}
-	}
-	else
-	{
-		CopyRemoteRoleFrom(GetDefault<APawn>());
-	}
-
-	// dispatch Blueprint event if necessary
-	if (OldController != NewController)
-	{
-		ReceivePossessed(Controller);
-
-		NotifyControllerChanged();
-	}
+	UE_LOG(LogTemp, Warning, TEXT("%s"), *GetOwner()->GetName());
 }
 
 void APinPlayerPawn::RollBody()

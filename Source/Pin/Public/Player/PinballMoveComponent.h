@@ -5,6 +5,20 @@
 
 #include "PinballMoveComponent.generated.h"
 
+
+USTRUCT(BlueprintType)
+struct FMove
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY()
+	float DeltaTime;
+	UPROPERTY()
+	FVector Force;
+};
+
+
 /**
  * 
  */
@@ -31,6 +45,13 @@ public:
 	void ResolveCollision(FHitResult Hit);
 
 	void CalcGravity();
+
+	UFUNCTION()
+	void PerformMove(FMove Move);
+
+	UFUNCTION(Server, Reliable)
+	void ServerPerformMove(FMove Move);
+	void ServerPerformMove_Implementation(FMove Move);
 
 	UFUNCTION(BlueprintCallable)
 	void AddForce(FVector Force);

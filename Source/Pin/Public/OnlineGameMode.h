@@ -24,5 +24,9 @@ public:
 
 	UFUNCTION()
 	virtual void PostLogin(APlayerController* NewPlayer) override;
+
+	UFUNCTION(NetMulticast, Reliable)
+		void SpawnPlayer(APlayerController* NewPlayer);
+	void SpawnPlayer_Implementation(APlayerController* NewPlayer);
 	
 };
