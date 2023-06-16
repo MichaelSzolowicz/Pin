@@ -98,6 +98,7 @@ void UPinballMoveComponent::UpdatePhysicsWithImpulse(float DeltaTime)
 	FMove Move = FMove();
 	Move.Force = AccumulatedForce;
 	Move.DeltaTime = DeltaTime;
+	Move.EndVelocity = Velocity;
 	
 
 	APawn* Pawn = (APawn*)GetOwner();
@@ -109,8 +110,7 @@ void UPinballMoveComponent::UpdatePhysicsWithImpulse(float DeltaTime)
 	
 	if (GetNetMode() == NM_Client)
 	{
-		ServerPerformMove(Move);
-		
+		ServerPerformMove(Move);	
 	}
 	AccumulatedForce = FVector::Zero();
 
@@ -119,9 +119,9 @@ void UPinballMoveComponent::UpdatePhysicsWithImpulse(float DeltaTime)
 void UPinballMoveComponent::ResolveCollision(FHitResult Hit)
 {
 	// Assuming other actor is static, I will need to find a different way to reliably get velocity from all types of actor.
-	FVector rv = Hit.GetActor()->GetVelocity() - Velocity;
+	FVector rv = -Velocity;
 
-	float velAlongNormal = FVector::DotProduct(rv, Hit.Normal);
+	double velAlongNormal = FVector::DotProduct(rv, Hit.Normal);
 
 	if (velAlongNormal < 0) return;
 
@@ -145,8 +145,8 @@ void UPinballMoveComponent::CalcGravity()
 
 void UPinballMoveComponent::PerformMove(FMove Move)
 {
-	UE_LOG(LogTemp, Warning, TEXT("%s Perform Move"), GetNetMode() == NM_Client ? TEXT("Client") : TEXT("Server"));
-	UE_LOG(LogTemp, Warning, TEXT("%s"), *Velocity.ToString());
+	//UE_LOG(LogTemp, Warning, TEXT("%s Perform Move"), GetNetMode() == NM_Client ? TEXT("Client") : TEXT("Server"));
+	//UE_LOG(LogTemp, Warning, TEXT("%s"), *Velocity.ToString());
 
 	// Delta position
 	FVector d = Velocity * Move.DeltaTime;
@@ -195,10 +195,79 @@ void UPinballMoveComponent::PerformMove(FMove Move)
 
 void UPinballMoveComponent::ServerPerformMove_Implementation(FMove Move)
 {
-	//UE_LOG(LogTemp, Warning, TEXT("%s"), GetNetMode() == NM_Client ? TEXT("Client") : TEXT("Server"));
-	//UE_LOG(LogTemp, Warning, TEXT("%f"), Move.DeltaTime);
+	//UE_LOG(LogTemp, Warning, TEXT("%s Perform Move"), GetNetMode() == NM_Client ? TEXT("Client") : TEXT("Server"));
+	//UE_LOG(LogTemp, Warning, TEXT("%s"), *Move.Force.ToString());
 
-	PerformMove(Move);
+
+	// Delta position
+	FVector d = Velocity * Move.DeltaTime;
+	FVector dx = FVector(d.X, 0, 0);
+	FVector dy = FVector(0, d.Y, 0);
+	FVector dz = FVector(0, 0, d.Z);
+
+	// Update our position
+	// Moving each axis indepently helps ensure walls apply an opposing force, canceling out our velcotiy and prevent wall "sticking"
+	FHitResult Hit;
+	SafeMoveUpdatedComponent(dx, UpdatedComponent->GetComponentRotation(), true, Hit);
+
+	// Handle overlaps
+	if (Hit.IsValidBlockingHit())
+	{
+		ResolveCollision(Hit);
+		SlideAlongSurface(dx, 1.f - Hit.Time, Hit.Normal, Hit);
+	}
+
+	// Y move
+	SafeMoveUpdatedComponent(dy, UpdatedComponent->GetComponentRotation(), true, Hit);
+
+	// Handle overlaps
+	if (Hit.IsValidBlockingHit())
+	{
+		ResolveCollision(Hit);
+		SlideAlongSurface(dy, 1.f - Hit.Time, Hit.Normal, Hit);
+	}
+
+	// Z move
+	SafeMoveUpdatedComponent(dz, UpdatedComponent->GetComponentRotation(), true, Hit);
+
+	// Handle overlaps
+	if (Hit.IsValidBlockingHit())
+	{
+		ResolveCollision(Hit);
+		SlideAlongSurface(dz, 1.f - Hit.Time, Hit.Normal, Hit);
+	}
+
+	//UE_LOG(LogTemp, Warning, TEXT("Velocity: %s"), *Velocity.ToString());
+
+	Velocity += Move.Force * Move.DeltaTime;
+
+	AccumulatedForce = FVector::Zero();
+
+	CheckCompletedMove(Move);
+}
+
+void UPinballMoveComponent::CheckCompletedMove(FMove Move)
+{
+	bool correction = false;
+	FMove CorrectedMove = FMove();
+
+	UE_LOG(LogTemp, Warning, TEXT("Server / Client diff: %f"), FVector::Distance(Move.EndPosition, UpdatedComponent->GetComponentLocation()));
+	if (FVector::Distance(Move.EndPosition, UpdatedComponent->GetComponentLocation()) > 1000.0)
+	{
+		correction = true;
+		CorrectedMove.EndPosition = UpdatedComponent->GetComponentLocation();
+	}
+
+	if (correction)
+	{
+		ClientCorrection(CorrectedMove);
+	}
+}
+
+void UPinballMoveComponent::ClientCorrection_Implementation(FMove Move)
+{
+	//UE_LOG(LogTemp, Warning, TEXT("Client Correction"));
+	UpdatedComponent->SetWorldLocation(Move.EndPosition);
 }
 
 void UPinballMoveComponent::AddForce(FVector Force)

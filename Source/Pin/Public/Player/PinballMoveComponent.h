@@ -16,6 +16,10 @@ public:
 	float DeltaTime;
 	UPROPERTY()
 	FVector Force;
+	UPROPERTY()
+	FVector EndVelocity;
+	UPROPERTY()
+	FVector EndPosition;
 };
 
 
@@ -26,6 +30,13 @@ UCLASS(Blueprintable)
 class PIN_API UPinballMoveComponent : public UMovementComponent
 {
 	GENERATED_BODY()
+
+protected:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement Params")
+	float MaxAcceleration;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement Params")
+	float MaxSpeed;
+
 
 public:
 	FVector AccumulatedForce;
@@ -49,13 +60,23 @@ public:
 	UFUNCTION()
 	void PerformMove(FMove Move);
 
-	UFUNCTION(Server, Reliable)
+	UFUNCTION(Server, Unreliable)
 	void ServerPerformMove(FMove Move);
 	void ServerPerformMove_Implementation(FMove Move);
+
+	UFUNCTION()
+		void CheckCompletedMove(FMove Move);
+
+	UFUNCTION(Client, Reliable)
+		void ClientCorrection(FMove Move);
+	void ClientCorrection_Implementation(FMove Move);
 
 	UFUNCTION(BlueprintCallable)
 	void AddForce(FVector Force);
 
 	float AngleBetweenVectors(FVector v1, FVector v2);
+
+	UFUNCTION(BlueprintCallable)
+		float GetSpeed() { return Velocity.Size(); }
 	
 };
