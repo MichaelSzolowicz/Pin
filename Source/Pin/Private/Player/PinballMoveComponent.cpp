@@ -237,8 +237,9 @@ void UPinballMoveComponent::ServerPerformMove_Implementation(FMove Move)
 		SlideAlongSurface(dz, 1.f - Hit.Time, Hit.Normal, Hit);
 	}
 
-	//UE_LOG(LogTemp, Warning, TEXT("Velocity: %s"), *Velocity.ToString());
-
+	// Server updates its local velocity. If CheckCompletedMove gives the move the OK, 
+	// server will update its velocity to that of the client. Otherwise, client will use the server velocity.
+	// **Note that the server will never update its velocity independent of input from the client.**
 	Velocity += Move.Force * Move.DeltaTime;
 
 	AccumulatedForce = FVector::Zero();
@@ -246,21 +247,50 @@ void UPinballMoveComponent::ServerPerformMove_Implementation(FMove Move)
 	CheckCompletedMove(Move);
 }
 
+bool UPinballMoveComponent::ServerPerformMove_Validate(FMove Move)
+{
+	// When declaring a RPC WithValidation, the _Validate function is automatically called and will disconnect the client if it returns false.
+	// Only use this feature if you are sure the client is cheating.
+
+	UE_LOG(LogTemp, Warning, TEXT("Server Validate"));
+	return true;
+}
+
+bool UPinballMoveComponent::ServerValidateMove(FMove Move)
+{
+	// Will fill out this function later.
+	// I need a better system for determining if a move is valid.
+	// I think I should break player input and natural physical forces into seperate inputs.
+	// This way the server can validate them seperatly, w/out running into issues like capping the max fall speed when we don't want to.
+
+	// Although in this case we might only need to send over the input. Physical forces should be the same on the server, so we can calculate those
+	// using the constants on the server and client provided delta time.
+	return false;
+}
+
 void UPinballMoveComponent::CheckCompletedMove(FMove Move)
 {
+	// The server's most recent approved position, velocity, etc. is assigned to the components they belong to.
+	// The result of the move sent by the client is stored in struct members prefixed by "End."
 	bool correction = false;
-	FMove CorrectedMove = FMove();
 
-	UE_LOG(LogTemp, Warning, TEXT("Server / Client diff: %f"), FVector::Distance(Move.EndPosition, UpdatedComponent->GetComponentLocation()));
-	if (FVector::Distance(Move.EndPosition, UpdatedComponent->GetComponentLocation()) > 1000.0)
+	//UE_LOG(LogTemp, Warning, TEXT("Server / Client diff: %f"), FVector::Distance(Move.EndPosition, UpdatedComponent->GetComponentLocation()));
+	if (FVector::Distance(Move.EndPosition, UpdatedComponent->GetComponentLocation()) >= MinCorrectionDistance)
 	{
 		correction = true;
-		CorrectedMove.EndPosition = UpdatedComponent->GetComponentLocation();
 	}
 
 	if (correction)
 	{
+		// Construct the corrected move only if we need it.
+		FMove CorrectedMove = FMove();
+		CorrectedMove.EndVelocity = Velocity;
+		CorrectedMove.EndPosition = UpdatedComponent->GetComponentLocation();
 		ClientCorrection(CorrectedMove);
+	}
+	else
+	{
+		Velocity = Move.EndVelocity;
 	}
 }
 
@@ -268,6 +298,7 @@ void UPinballMoveComponent::ClientCorrection_Implementation(FMove Move)
 {
 	//UE_LOG(LogTemp, Warning, TEXT("Client Correction"));
 	UpdatedComponent->SetWorldLocation(Move.EndPosition);
+	Velocity = Move.EndVelocity;
 }
 
 void UPinballMoveComponent::AddForce(FVector Force)

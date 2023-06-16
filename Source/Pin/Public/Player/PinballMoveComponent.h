@@ -12,6 +12,9 @@ struct FMove
 	GENERATED_BODY()
 
 public:
+	// Delta time should be changed to a timestamp, server uses diff with previous as delta.
+	// Force should, specifically, be the input force. From keys. Grapple input will later 
+	// on be calculated server-side if a bool indicating the key is held is sent.
 	UPROPERTY()
 	float DeltaTime;
 	UPROPERTY()
@@ -32,10 +35,8 @@ class PIN_API UPinballMoveComponent : public UMovementComponent
 	GENERATED_BODY()
 
 protected:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement Params")
-	float MaxAcceleration;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement Params")
-	float MaxSpeed;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Networking")
+		float MinCorrectionDistance;
 
 
 public:
@@ -60,15 +61,19 @@ public:
 	UFUNCTION()
 	void PerformMove(FMove Move);
 
-	UFUNCTION(Server, Unreliable)
+	UFUNCTION(Server, Unreliable, WithValidation)
 	void ServerPerformMove(FMove Move);
 	void ServerPerformMove_Implementation(FMove Move);
+	bool ServerPerformMove_Validate(FMove Move);
+
+	/* Used to check move inputs before executing the move. */
+	bool ServerValidateMove(FMove Move);
 
 	UFUNCTION()
-		void CheckCompletedMove(FMove Move);
+	void CheckCompletedMove(FMove Move);
 
 	UFUNCTION(Client, Reliable)
-		void ClientCorrection(FMove Move);
+	void ClientCorrection(FMove Move);
 	void ClientCorrection_Implementation(FMove Move);
 
 	UFUNCTION(BlueprintCallable)
