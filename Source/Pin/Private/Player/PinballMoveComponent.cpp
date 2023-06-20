@@ -102,23 +102,21 @@ void UPinballMoveComponent::UpdatePhysicsWithImpulse(float DeltaTime)
 	
 
 	APawn* Pawn = (APawn*)GetOwner();
-
 	if (Pawn && Pawn->Controller && Pawn->Controller->IsLocalPlayerController())
 	{
 		PerformMove(Move);
 	}
-	
+	Move.EndVelocity = Velocity;
+	Move.EndPosition = UpdatedComponent->GetComponentLocation();
 	if (GetNetMode() == NM_Client)
 	{
-		ServerPerformMove(Move);	
+		ServerPerformMove(Move);
 	}
-	AccumulatedForce = FVector::Zero();
-
 }
 
 void UPinballMoveComponent::ResolveCollision(FHitResult Hit)
 {
-	// Assuming other actor is static, I will need to find a different way to reliably get velocity from all types of actor.
+	// Assuming other actor is static, later I will need to find a different way to reliably get velocity from all types of actor.
 	FVector rv = -Velocity;
 
 	double velAlongNormal = FVector::DotProduct(rv, Hit.Normal);
@@ -198,12 +196,13 @@ void UPinballMoveComponent::ServerPerformMove_Implementation(FMove Move)
 	//UE_LOG(LogTemp, Warning, TEXT("%s Perform Move"), GetNetMode() == NM_Client ? TEXT("Client") : TEXT("Server"));
 	//UE_LOG(LogTemp, Warning, TEXT("%s"), *Move.Force.ToString());
 
-
-	// Delta position
+		// Delta position
 	FVector d = Velocity * Move.DeltaTime;
 	FVector dx = FVector(d.X, 0, 0);
 	FVector dy = FVector(0, d.Y, 0);
 	FVector dz = FVector(0, 0, d.Z);
+
+	EndPos += d;
 
 	// Update our position
 	// Moving each axis indepently helps ensure walls apply an opposing force, canceling out our velcotiy and prevent wall "sticking"
@@ -237,11 +236,9 @@ void UPinballMoveComponent::ServerPerformMove_Implementation(FMove Move)
 		SlideAlongSurface(dz, 1.f - Hit.Time, Hit.Normal, Hit);
 	}
 
-	// Server updates its local velocity. If CheckCompletedMove gives the move the OK, 
-	// server will update its velocity to that of the client. Otherwise, client will use the server velocity.
-	// **Note that the server will never update its velocity independent of input from the client.**
-	Velocity += Move.Force * Move.DeltaTime;
+	//UE_LOG(LogTemp, Warning, TEXT("Velocity: %s"), *Velocity.ToString());
 
+	Velocity += Move.Force * Move.DeltaTime;
 	AccumulatedForce = FVector::Zero();
 
 	CheckCompletedMove(Move);
@@ -274,7 +271,9 @@ void UPinballMoveComponent::CheckCompletedMove(FMove Move)
 	// The result of the move sent by the client is stored in struct members prefixed by "End."
 	bool correction = false;
 
-	//UE_LOG(LogTemp, Warning, TEXT("Server / Client diff: %f"), FVector::Distance(Move.EndPosition, UpdatedComponent->GetComponentLocation()));
+	UE_LOG(LogTemp, Warning, TEXT("Server / Client distance: %f"), FVector::Distance(Move.EndPosition,UpdatedComponent->GetComponentLocation()));
+	UE_LOG(LogTemp, Warning, TEXT("Client Move End Position: %f"), *Move.EndPosition.ToString());
+
 	if (FVector::Distance(Move.EndPosition, UpdatedComponent->GetComponentLocation()) >= MinCorrectionDistance)
 	{
 		correction = true;

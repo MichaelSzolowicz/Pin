@@ -42,6 +42,7 @@ protected:
 public:
 	FVector AccumulatedForce;
 	FVector Velocity;
+	FVector EndPos;
 	float Mass = 100.f;
 	float InverseMass;
 	float restitution = 1.f;
@@ -61,7 +62,7 @@ public:
 	UFUNCTION()
 	void PerformMove(FMove Move);
 
-	UFUNCTION(Server, Unreliable, WithValidation)
+	UFUNCTION(Server, Unreliable)
 	void ServerPerformMove(FMove Move);
 	void ServerPerformMove_Implementation(FMove Move);
 	bool ServerPerformMove_Validate(FMove Move);
