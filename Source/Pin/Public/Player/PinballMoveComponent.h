@@ -16,7 +16,7 @@ public:
 	// Force should, specifically, be the input force. From keys. Grapple input will later 
 	// on be calculated server-side if a bool indicating the key is held is sent.
 	UPROPERTY()
-	float DeltaTime;
+	float Time;
 	UPROPERTY()
 	FVector Force;
 	UPROPERTY()
@@ -34,9 +34,21 @@ class PIN_API UPinballMoveComponent : public UMovementComponent
 {
 	GENERATED_BODY()
 
-protected:
+public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Networking")
 		float MinCorrectionDistance;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Networking")
+		TArray<FMove> ClientPendingMoves;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Networking")
+		FMove MovePendingValidation;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Networking")
+		bool bAccetingMoves = true;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Networking")
+		float PrevTimestamp = 0.0f;
 
 
 public:
@@ -65,7 +77,6 @@ public:
 	UFUNCTION(Server, Unreliable)
 	void ServerPerformMove(FMove Move);
 	void ServerPerformMove_Implementation(FMove Move);
-	bool ServerPerformMove_Validate(FMove Move);
 
 	/* Used to check move inputs before executing the move. */
 	bool ServerValidateMove(FMove Move);
@@ -77,12 +88,16 @@ public:
 	void ClientCorrection(FMove Move);
 	void ClientCorrection_Implementation(FMove Move);
 
+	UFUNCTION(Client, Reliable)
+	void ClientApproveMove(float Timestamp);
+	void ClientApproveMove_Implementation(float Timestamp);
+
 	UFUNCTION(BlueprintCallable)
 	void AddForce(FVector Force);
 
 	float AngleBetweenVectors(FVector v1, FVector v2);
 
 	UFUNCTION(BlueprintCallable)
-		float GetSpeed() { return Velocity.Size(); }
+	float GetSpeed() { return Velocity.Size(); }
 	
 };
