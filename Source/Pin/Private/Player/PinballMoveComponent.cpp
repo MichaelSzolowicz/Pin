@@ -107,10 +107,6 @@ void UPinballMoveComponent::UpdatePhysicsWithImpulse(float DeltaTime)
 
 	if (GetNetMode() == NM_Client)
 	{
-		if (!MovesPendingValidation.IsEmpty())
-		{
-			ServerOldMove(MovesPendingValidation[0]);
-		}
 		ServerPerformMove(Move);
 	}
 }
