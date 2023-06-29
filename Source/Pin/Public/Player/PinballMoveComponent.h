@@ -16,7 +16,9 @@ public:
 	// Force should, specifically, be the input force. From keys. Grapple input will later 
 	// on be calculated server-side if a bool indicating the key is held is sent.
 	UPROPERTY()
-	float Time;
+	float Time = -1.0f;
+	UPROPERTY()
+	float DeltaTime;
 	UPROPERTY()
 	FVector Force;
 	UPROPERTY()
@@ -39,16 +41,24 @@ public:
 		float MinCorrectionDistance;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Networking")
-		TArray<FMove> ClientPendingMoves;
+		TArray<FMove> MovesPendingValidation;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Networking")
-		FMove MovePendingValidation;
+		TArray<FMove> ServerMovesPendingValidation;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Networking")
+		FMove LastValidatedMove;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Networking")
 		bool bAccetingMoves = true;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Networking")
 		float PrevTimestamp = 0.0f;
+
+	FMove LastCorrection;
+
+	FVector TempPosition;
+	FVector TempVelocity;
 
 
 public:
@@ -77,6 +87,10 @@ public:
 	UFUNCTION(Server, Unreliable)
 	void ServerPerformMove(FMove Move);
 	void ServerPerformMove_Implementation(FMove Move);
+
+	UFUNCTION(Server, Unreliable)
+	void ServerOldMove(FMove Move);
+	void ServerOldMove_Implementation(FMove Move);
 
 	/* Used to check move inputs before executing the move. */
 	bool ServerValidateMove(FMove Move);

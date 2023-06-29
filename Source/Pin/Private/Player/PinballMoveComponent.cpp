@@ -20,7 +20,6 @@ void UPinballMoveComponent::TickComponent(float DeltaTime, enum ELevelTick TickT
 	/*TESTONLY*/
 	AActor* Owner = Cast<AActor>(GetOwner());
 	FVector LogVelocity = Owner->GetVelocity();
-	//UE_LOG(LogTemp, Warning, TEXT("Owner: %s velocity: %s"), *Owner->GetName(), *LogVelocity.ToString());
 	/*ENDTEST*/
 }
 
@@ -85,9 +84,6 @@ void UPinballMoveComponent::UpdatePhysics(float DeltaTime)
 	Velocity += AccumulatedForce * DeltaTime;
 
 	AccumulatedForce = FVector::Zero();
-
-	//UE_LOG(LogTemp, Warning, TEXT("Velocity: %s"), *Velocity.ToString());
-	//UE_LOG(LogTemp, Warning, TEXT("%f"), Velocity.Size());
 }
 */
 
@@ -98,25 +94,23 @@ void UPinballMoveComponent::UpdatePhysicsWithImpulse(float DeltaTime)
 	FMove Move = FMove();
 	Move.Force = AccumulatedForce;
 	Move.Time = GetWorld()->TimeSeconds;
-	Move.EndVelocity = Velocity;
+	Move.DeltaTime = DeltaTime;
 
 	APawn* Pawn = (APawn*)GetOwner();
 	if (Pawn && Pawn->Controller && Pawn->Controller->IsLocalPlayerController())
 	{
-		//UE_LOG(LogTemp, Warning, TEXT("DeltaTime %f"), DeltaTime);
 		PerformMove(Move);
-		PrevTimestamp = GetWorld()->TimeSeconds;
-
+		Move.EndPosition = GetOwner()->GetActorLocation();
 		Move.EndVelocity = Velocity;
-		Move.EndPosition = UpdatedComponent->GetComponentLocation();
-
-		ClientPendingMoves.Add(Move);
+		MovesPendingValidation.Add(Move);
 	}
-
-	
 
 	if (GetNetMode() == NM_Client)
 	{
+		if (!MovesPendingValidation.IsEmpty())
+		{
+			ServerOldMove(MovesPendingValidation[0]);
+		}
 		ServerPerformMove(Move);
 	}
 }
@@ -150,16 +144,14 @@ void UPinballMoveComponent::CalcGravity()
 
 void UPinballMoveComponent::PerformMove(FMove Move)
 {
-	//UE_LOG(LogTemp, Warning, TEXT("%s Perform Move"), GetNetMode() == NM_Client ? TEXT("Client") : TEXT("Server"));
-
 	// Delta position
 	float dt = Move.Time - PrevTimestamp;
+	PrevTimestamp = Move.Time;
+
 	FVector d = Velocity * (dt);
 	FVector dx = FVector(d.X, 0, 0);
 	FVector dy = FVector(0, d.Y, 0);
 	FVector dz = FVector(0, 0, d.Z);
-
-	UE_LOG(LogTemp, Warning, TEXT("Force %s"), *Move.Force.ToString());
 
 	// Update our position
 	// Moving each axis indepently helps ensure walls apply an opposing force, canceling out our velcotiy and prevent wall "sticking"
@@ -193,7 +185,6 @@ void UPinballMoveComponent::PerformMove(FMove Move)
 		SlideAlongSurface(dz, 1.f - Hit.Time, Hit.Normal, Hit);
 	}
 
-	//UE_LOG(LogTemp, Warning, TEXT("Velocity: %s"), *Velocity.ToString());
 
 	Velocity += Move.Force * dt;
 
@@ -202,25 +193,10 @@ void UPinballMoveComponent::PerformMove(FMove Move)
 
 void UPinballMoveComponent::ServerPerformMove_Implementation(FMove Move)
 {
-	//UE_LOG(LogTemp, Warning, TEXT("%s Perform Move"), GetNetMode() == NM_Client ? TEXT("Client") : TEXT("Server"));
-	//UE_LOG(LogTemp, Warning, TEXT("%s"), *Move.Force.ToString());
-
-	//UE_LOG(LogTemp, Warning, TEXT("Client Time %f"), Move.Time);
-	//UE_LOG(LogTemp, Warning, TEXT("Previous Time %f"), MovePendingValidation.Time);
- 
-	if (ClientPendingMoves.IsEmpty()) ClientPendingMoves.Push(Move);
-	else if (Move.Time > ClientPendingMoves.Top().Time)
-	{
-		ClientPendingMoves.Push(Move);
-	}
-
-	PerformMove(ClientPendingMoves[0]);
-
-	PrevTimestamp = ClientPendingMoves[0].Time;
-
-	CheckCompletedMove(ClientPendingMoves[0]);
-
-	ClientPendingMoves.RemoveAt(0);
+	TempPosition = UpdatedComponent->GetComponentLocation();
+	TempVelocity = Velocity;
+	PerformMove(Move);
+	CheckCompletedMove(Move);
 }
 
 /*
@@ -246,15 +222,20 @@ bool UPinballMoveComponent::ServerValidateMove(FMove Move)
 	return false;
 }
 
+void UPinballMoveComponent::ServerOldMove_Implementation(FMove Move)
+{
+	if (Move.Time > LastValidatedMove.Time)
+	{
+		PerformMove(Move);
+	}
+}
+
 void UPinballMoveComponent::CheckCompletedMove(FMove Move)
 {
 	// The server's most recent approved position, velocity, etc. is assigned to the components they belong to.
 	// The result of the move sent by the client is stored in struct members prefixed by "End."
 	bool correction = false;
-	bAccetingMoves = true;
-
-	//UE_LOG(LogTemp, Warning, TEXT("Server / Client distance: %f"), FVector::Distance(Move.EndPosition,UpdatedComponent->GetComponentLocation()));
-	//UE_LOG(LogTemp, Warning, TEXT("Client Move End Position: %f"), *Move.EndPosition.ToString());
+	
 
 	if (FVector::Distance(Move.EndPosition, UpdatedComponent->GetComponentLocation()) >= MinCorrectionDistance)
 	{
@@ -263,34 +244,55 @@ void UPinballMoveComponent::CheckCompletedMove(FMove Move)
 
 	if (correction)
 	{
-		// Construct the corrected move only if we need it.
-		FMove CorrectedMove = FMove();
-		CorrectedMove.EndVelocity = Velocity;
-		CorrectedMove.EndPosition = UpdatedComponent->GetComponentLocation();
-		ClientCorrection(CorrectedMove);
+		Move.EndPosition = UpdatedComponent->GetComponentLocation();
+		Move.EndVelocity = Velocity;
+		LastValidatedMove = Move;
+
+		ClientCorrection(Move);
 	}
 	else
 	{
 		Velocity = Move.EndVelocity;
-		ClientApproveMove(0.0f);
+		LastValidatedMove = Move;
+		ClientApproveMove(Move.Time);
 	}
 }
 
 void UPinballMoveComponent::ClientCorrection_Implementation(FMove Move)
 {
-	//UE_LOG(LogTemp, Warning, TEXT("Client Correction"));
+	UE_LOG(LogTemp, Warning, TEXT("Correction"));
 	UpdatedComponent->SetWorldLocation(Move.EndPosition);
 	Velocity = Move.EndVelocity;
-	ClientPendingMoves.RemoveAt(0);
+
+	int Num = MovesPendingValidation.Num();
+	for (int i = 0; i < Num; i++)
+	{
+		if (MovesPendingValidation[0].Time <= Move.Time)
+		{
+			MovesPendingValidation.RemoveAt(0);
+		}
+		else
+		{
+			break;
+		}
+	}
+	for (int i = 0; i < MovesPendingValidation.Num(); i++)
+	{
+		PrevTimestamp = MovesPendingValidation[i].Time - MovesPendingValidation[i].DeltaTime;
+		PerformMove(MovesPendingValidation[i]);
+	}
+	PrevTimestamp = GetWorld()->TimeSeconds;
+
 }
 
 void UPinballMoveComponent::ClientApproveMove_Implementation(float Timestamp)
 {
-	ClientPendingMoves.RemoveAt(0);
+	
 }
 
 void UPinballMoveComponent::AddForce(FVector Force)
 {
+	//UE_LOG(LogTemp, Warning, TEXT("Velocity"));
 	AccumulatedForce += Force;
 }
 
