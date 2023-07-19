@@ -27,13 +27,13 @@ void AOnlineGameMode::SpawnPlayer_Implementation(APlayerController* NewPlayer)
 	// Get the payer starts
 	TArray<AActor*> PlayerStarts;
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), APlayerStartContainer::StaticClass(), PlayerStarts);
-	if (PlayerStarts.Num() > 0)
+	if (!PlayerStarts.IsEmpty())
 		PlayerStarts = Cast<APlayerStartContainer>(PlayerStarts[0])->GetPlayerStartArray();
 	else
 		return;
 
 	// Spawn & posses new pawn
-	if (PlayerStarts.Num() >= NumPlayers)
+	if (PlayerStarts.Num() > NumPlayers)
 	{
 		// Only spawning the default pin player pawn class for now.
 		APinPlayerPawn* NewPawn = GetWorld()->SpawnActor<APinPlayerPawn>(DefaultPlayerPawn, PlayerStarts[NumPlayers]->GetActorTransform());

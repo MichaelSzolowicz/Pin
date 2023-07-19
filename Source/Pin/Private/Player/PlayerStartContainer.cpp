@@ -15,5 +15,8 @@ void APlayerStartContainer::AddNewStart()
 
 void APlayerStartContainer::RemoveStart()
 {
-
+	if (!Array.IsEmpty()) {
+		AActor* Delete = Array.Pop();
+		GetWorld()->DestroyActor(Delete);
+	}
 }

@@ -37,6 +37,20 @@ class PIN_API UPinballMoveComponent : public UMovementComponent
 	GENERATED_BODY()
 
 public:
+/* Variable related to physics */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Physics")
+		FVector AccumulatedForce;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Physics")
+		FVector ComponentVelocity;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Physics")
+		float Mass = 100.f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Physics")
+		float restitution = 1.f;
+
+/* Variables related to networking */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Networking")
 		float MinCorrectionDistance;
 
@@ -44,56 +58,32 @@ public:
 		TArray<FMove> MovesPendingValidation;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Networking")
-		TArray<FMove> ServerMovesPendingValidation;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Networking")
 		FMove LastValidatedMove;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Networking")
-		bool bAccetingMoves = true;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Networking")
 		float PrevTimestamp = 0.0f;
 
-	FMove LastCorrection;
-
-	FVector TempPosition;
-	FVector TempVelocity;
-
-
 public:
-	FVector AccumulatedForce;
-	FVector Velocity;
-	FVector EndPos;
-	float Mass = 100.f;
-	float InverseMass;
-	float restitution = 1.f;
-
 	virtual void BeginPlay() override;
 
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 	void UpdatePhysics(float DeltaTime);
 
-	void UpdatePhysicsWithImpulse(float DeltaTime);
-
-	void ResolveCollision(FHitResult Hit);
-
 	void CalcGravity();
 
 	UFUNCTION()
 	void PerformMove(FMove Move);
 
-	UFUNCTION(Server, Unreliable)
-	void ServerPerformMove(FMove Move);
-	void ServerPerformMove_Implementation(FMove Move);
-
-	UFUNCTION(Server, Unreliable)
-	void ServerOldMove(FMove Move);
-	void ServerOldMove_Implementation(FMove Move);
+	void ResolveCollision(FHitResult Hit);
 
 	/* Used to check move inputs before executing the move. */
 	bool ServerValidateMove(FMove Move);
+
+	UFUNCTION(Server, Unreliable, WithValidation)
+	void ServerPerformMove(FMove Move);
+	void ServerPerformMove_Implementation(FMove Move);
+	bool ServerPerformMove_Validate(FMove Move);
 
 	UFUNCTION()
 	void CheckCompletedMove(FMove Move);
@@ -109,8 +99,19 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void AddForce(FVector Force);
 
+	UFUNCTION(BlueprintCallable)
+	float InverseMass() { return 1 / Mass; }
+
+/*Utility functions.*/
+	/*
+	* Returns the angle between two vectors.
+	* @param v1
+	* @param v2
+	* @return angle
+	*/
 	float AngleBetweenVectors(FVector v1, FVector v2);
 
+/*Getter functions.*/
 	UFUNCTION(BlueprintCallable)
 	float GetSpeed() { return Velocity.Size(); }
 	
