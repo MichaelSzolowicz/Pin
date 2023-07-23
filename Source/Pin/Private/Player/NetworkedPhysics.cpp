@@ -1,8 +1,8 @@
-#include "Player/PinballMoveComponent.h"
+#include "Player/NetworkedPhysics.h"
 
 #include "DrawDebugHelpers.h"
 
-void UPinballMoveComponent::BeginPlay()
+void UNetworkedPhysics::BeginPlay()
 {
 	Super::BeginPlay();
 
@@ -10,7 +10,7 @@ void UPinballMoveComponent::BeginPlay()
 }
 
 
-void UPinballMoveComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+void UNetworkedPhysics::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
@@ -18,7 +18,7 @@ void UPinballMoveComponent::TickComponent(float DeltaTime, enum ELevelTick TickT
 }
 
 /*
-void UPinballMoveComponent::UpdatePhysics(float DeltaTime)
+void UNetworkedPhysics::UpdatePhysics(float DeltaTime)
 {
 	CalcGravity();
 
@@ -37,7 +37,7 @@ void UPinballMoveComponent::UpdatePhysics(float DeltaTime)
 	DrawDebugPoint(GetWorld(), OutHit.ImpactPoint, 20.f, FColor::Red, true, .01f);
 
 	if (OutHit.IsValidBlockingHit())
-	{	
+	{
 		// Normal force
 		N += OutHit.Normal * FVector::DotProduct((-ComponentVelocity / DeltaTime), OutHit.Normal);
 
@@ -81,7 +81,7 @@ void UPinballMoveComponent::UpdatePhysics(float DeltaTime)
 }
 */
 
-void UPinballMoveComponent::UpdatePhysics(float DeltaTime)
+void UNetworkedPhysics::UpdatePhysics(float DeltaTime)
 {
 	//Add natural forces.
 	CalcGravity();
@@ -110,14 +110,14 @@ void UPinballMoveComponent::UpdatePhysics(float DeltaTime)
 }
 
 
-void UPinballMoveComponent::CalcGravity()
+void UNetworkedPhysics::CalcGravity()
 {
 	// Ignore mass (for the time being)
 	AccumulatedForce += FVector(0, 0, GetWorld()->GetGravityZ()) * Mass;
 }
 
 
-void UPinballMoveComponent::PerformMove(FMove Move)
+void UNetworkedPhysics::PerformMove(FMove Move)
 {
 	// Delta position
 	float dt = Move.Time - PrevTimestamp;
@@ -168,7 +168,7 @@ void UPinballMoveComponent::PerformMove(FMove Move)
 }
 
 
-void UPinballMoveComponent::ResolveCollision(FHitResult Hit)
+void UNetworkedPhysics::ResolveCollision(FHitResult Hit)
 {
 	// Assuming other actor is static, later I will need to find a different way to reliably get ComponentVelocity from all types of actor.
 	FVector rv = -ComponentVelocity;
@@ -189,7 +189,7 @@ void UPinballMoveComponent::ResolveCollision(FHitResult Hit)
 }
 
 
-bool UPinballMoveComponent::ServerValidateMove(FMove Move)
+bool UNetworkedPhysics::ServerValidateMove(FMove Move)
 {
 	// Will fill out this function later.
 	// I need a better system for determining if a move is valid.
@@ -202,14 +202,14 @@ bool UPinballMoveComponent::ServerValidateMove(FMove Move)
 }
 
 
-void UPinballMoveComponent::ServerPerformMove_Implementation(FMove Move)
+void UNetworkedPhysics::ServerPerformMove_Implementation(FMove Move)
 {
 	PerformMove(Move);
 	CheckCompletedMove(Move);
 }
 
 
-bool UPinballMoveComponent::ServerPerformMove_Validate(FMove Move)
+bool UNetworkedPhysics::ServerPerformMove_Validate(FMove Move)
 {
 	// When declaring a RPC WithValidation, the _Validate function is automatically called and will disconnect the client if it returns false.
 	// Only use this feature if you are sure the client is cheating.
@@ -219,7 +219,7 @@ bool UPinballMoveComponent::ServerPerformMove_Validate(FMove Move)
 }
 
 
-void UPinballMoveComponent::CheckCompletedMove(FMove Move)
+void UNetworkedPhysics::CheckCompletedMove(FMove Move)
 {
 	// The server's most recent approved position, velocity, etc. is assigned to the components they belong to.
 	// The result of the move sent by the client is stored in struct members prefixed by "End."
@@ -246,7 +246,7 @@ void UPinballMoveComponent::CheckCompletedMove(FMove Move)
 	}
 }
 
-void UPinballMoveComponent::ClientCorrection_Implementation(FMove Move)
+void UNetworkedPhysics::ClientCorrection_Implementation(FMove Move)
 {
 	UE_LOG(LogTemp, Warning, TEXT("Correction"));
 	UpdatedComponent->SetWorldLocation(Move.EndPosition);
@@ -272,7 +272,7 @@ void UPinballMoveComponent::ClientCorrection_Implementation(FMove Move)
 	PrevTimestamp = GetWorld()->TimeSeconds;
 }
 
-void UPinballMoveComponent::ClientApproveMove_Implementation(float Timestamp)
+void UNetworkedPhysics::ClientApproveMove_Implementation(float Timestamp)
 {
 	// Remove moves that occured before the approved move.
 	int Num = MovesPendingValidation.Num();
@@ -289,13 +289,13 @@ void UPinballMoveComponent::ClientApproveMove_Implementation(float Timestamp)
 	}
 }
 
-void UPinballMoveComponent::AddForce(FVector Force)
+void UNetworkedPhysics::AddForce(FVector Force)
 {
 	//UE_LOG(LogTemp, Warning, TEXT("Velocity"));
 	AccumulatedForce += Force;
 }
 
-float UPinballMoveComponent::AngleBetweenVectors(FVector v1, FVector v2)
+float UNetworkedPhysics::AngleBetweenVectors(FVector v1, FVector v2)
 {
 	float Dot = FVector::DotProduct(v1, v2);
 	float Mag = v1.Size() * v2.Size();
