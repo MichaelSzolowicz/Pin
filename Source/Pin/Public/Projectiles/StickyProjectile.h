@@ -7,7 +7,7 @@
 /**
  * 
  */
-UCLASS()
+UCLASS(meta = (BlueprintSpawnableComponent))
 class PIN_API UStickyProjectile : public USimpleProjectile
 {
 	GENERATED_BODY()

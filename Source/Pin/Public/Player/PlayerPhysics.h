@@ -7,7 +7,7 @@
 /**
  * 
  */
-UCLASS()
+UCLASS(Blueprintable)
 class PIN_API UPlayerPhysics : public UNetworkedPhysics
 {
 	GENERATED_BODY()
