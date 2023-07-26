@@ -9,7 +9,7 @@ class PIN_API USimpleProjectile : public UActorComponent
 {
 	GENERATED_BODY()
 
-protected:
+public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics");
 	float Speed;
 

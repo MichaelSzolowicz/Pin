@@ -239,7 +239,9 @@ void UNetworkedPhysics::CheckCompletedMove(FMove Move)
 	}
 	else
 	{
-		ComponentVelocity = Move.EndVelocity;
+		// Floating point error still has a tendency to lead to desync and corrections, even when the client is sending valid moves.
+		// Tried having the server accept the client's velocity if the moves were close enough, but this still breaks server authority.
+		//ComponentVelocity = Move.EndVelocity;
 		LastValidatedMove = Move;
 		ClientApproveMove(Move.Time);
 	}
@@ -247,9 +249,10 @@ void UNetworkedPhysics::CheckCompletedMove(FMove Move)
 
 void UNetworkedPhysics::ClientCorrection_Implementation(FMove Move)
 {
-	UE_LOG(LogTemp, Warning, TEXT("Correction"));
+	UE_LOG(LogTemp, Warning, TEXT("Correction %f"), GetWorld()->TimeSeconds);
 	UpdatedComponent->SetWorldLocation(Move.EndPosition);
 	ComponentVelocity = Move.EndVelocity;
+	
 
 	int Num = MovesPendingValidation.Num();
 	for (int i = 0; i < Num; i++)

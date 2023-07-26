@@ -28,6 +28,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grapple")
 		bool bIsGrappling = false;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grapple")
+		FVector GrappleVelocity;
+
 protected:
 	void PerformMove(FMove Move) override;
 

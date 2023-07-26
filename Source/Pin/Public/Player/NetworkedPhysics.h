@@ -88,11 +88,11 @@ public:
 	bool ServerPerformMove_Validate(FMove Move);
 
 	UFUNCTION()
-	void CheckCompletedMove(FMove Move);
+	virtual void CheckCompletedMove(FMove Move);
 
 	UFUNCTION(Client, Reliable)
 	void ClientCorrection(FMove Move);
-	void ClientCorrection_Implementation(FMove Move);
+	virtual void ClientCorrection_Implementation(FMove Move);
 
 	UFUNCTION(Client, Reliable)
 	void ClientApproveMove(float Timestamp);
