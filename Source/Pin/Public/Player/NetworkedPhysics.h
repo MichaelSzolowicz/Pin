@@ -25,6 +25,8 @@ public:
 		FVector EndVelocity;
 	UPROPERTY()
 		FVector EndPosition;
+	UPROPERTY()
+		bool bGrapple;
 };
 
 
@@ -68,12 +70,12 @@ public:
 
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
-	void UpdatePhysics(float DeltaTime);
+	virtual void UpdatePhysics(float DeltaTime);
 
 	void CalcGravity();
 
 	UFUNCTION()
-		void PerformMove(FMove Move);
+	virtual void PerformMove(FMove Move);
 
 	void ResolveCollision(FHitResult Hit);
 
@@ -86,21 +88,21 @@ public:
 	bool ServerPerformMove_Validate(FMove Move);
 
 	UFUNCTION()
-		void CheckCompletedMove(FMove Move);
+	void CheckCompletedMove(FMove Move);
 
 	UFUNCTION(Client, Reliable)
-		void ClientCorrection(FMove Move);
+	void ClientCorrection(FMove Move);
 	void ClientCorrection_Implementation(FMove Move);
 
 	UFUNCTION(Client, Reliable)
-		void ClientApproveMove(float Timestamp);
+	void ClientApproveMove(float Timestamp);
 	void ClientApproveMove_Implementation(float Timestamp);
 
 	UFUNCTION(BlueprintCallable)
-		void AddForce(FVector Force);
+	void AddForce(FVector Force);
 
 	UFUNCTION(BlueprintCallable)
-		float InverseMass() { return 1 / Mass; }
+	float InverseMass() { return 1 / Mass; }
 
 	/*Utility functions.*/
 		/*

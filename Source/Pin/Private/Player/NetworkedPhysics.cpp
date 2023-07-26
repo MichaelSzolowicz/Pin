@@ -119,9 +119,12 @@ void UNetworkedPhysics::CalcGravity()
 
 void UNetworkedPhysics::PerformMove(FMove Move)
 {
-	// Delta position
+	// Delta time
 	float dt = Move.Time - PrevTimestamp;
 	PrevTimestamp = Move.Time;
+
+	ComponentVelocity += (Move.Force / Mass) * dt;
+	AccumulatedForce = FVector::Zero();
 
 	FVector d = ComponentVelocity * (dt);
 	FVector dx = FVector(d.X, 0, 0);
@@ -161,10 +164,6 @@ void UNetworkedPhysics::PerformMove(FMove Move)
 		ResolveCollision(Hit);
 		SlideAlongSurface(dz, 1.f - Hit.Time, Hit.Normal, Hit);
 	}
-
-	ComponentVelocity += (Move.Force / Mass) * dt;
-
-	AccumulatedForce = FVector::Zero();
 }
 
 
@@ -214,7 +213,7 @@ bool UNetworkedPhysics::ServerPerformMove_Validate(FMove Move)
 	// When declaring a RPC WithValidation, the _Validate function is automatically called and will disconnect the client if it returns false.
 	// Only use this feature if you are sure the client is cheating.
 
-	UE_LOG(LogTemp, Warning, TEXT("Server Validate"));
+	//UE_LOG(LogTemp, Warning, TEXT("Server Validate"));
 	return true;
 }
 

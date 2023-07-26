@@ -17,18 +17,30 @@ public:
 		TSubclassOf<AActor> GrappleProjectileClass;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grapple")
-		class UStickyProjectile* GrappleProjectile;
+		class UStickyProjectile* GrappleProjectile = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grapple")
 		float GrappleLiftetimeSeconds;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grapple")
+		float GrappleStrength;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grapple")
+		bool bIsGrappling = false;
+
 protected:
-	void ServerPerformMove(FMove Move, bool bGrapple);
-	void ServerPerformMove_Implementation(FMove Move, bool bGrapple);
-	bool ServerPerformMove_Validate(FMove Move, bool bGrapple);
+	void PerformMove(FMove Move) override;
+
+	UFUNCTION(Server, Unreliable)
+	void ServerPerformMoveGrapple(FMove Move);
+	void ServerPerformMoveGrapple_Implementation(FMove Move);
 
 	UFUNCTION(BlueprintCallable)
 	void SpawnGrappleProjectile();
 
+	UFUNCTION(BlueprintCallable)
+	void DespawnGrappleProjectile();
+
+	void UpdatePhysics(float DeltaTime) override;
 	
 };
