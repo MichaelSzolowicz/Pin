@@ -302,6 +302,7 @@ void UNetworkedPhysics::ClientCorrection_Implementation(FMove Move)
 	for (int i = 0; i < MovesPendingValidation.Num(); i++)
 	{
 		PrevTimestamp = MovesPendingValidation[i].Time - MovesPendingValidation[i].DeltaTime;
+		MovesPendingValidation[i].bGrappleForce = false;
 		PerformMove(MovesPendingValidation[i]);
 	}
 	PrevTimestamp = GetWorld()->TimeSeconds;

@@ -27,6 +27,8 @@ public:
 		FVector EndPosition;
 	UPROPERTY()
 		bool bGrapple;
+	UPROPERTY()
+		bool bGrappleForce = false;
 };
 
 

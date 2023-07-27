@@ -29,7 +29,7 @@ public:
 		bool bIsGrappling = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grapple")
-		FVector GrappleVelocity;
+		FVector PrevGrappleForce;
 
 protected:
 	void PerformMove(FMove Move) override;

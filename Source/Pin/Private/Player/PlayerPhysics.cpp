@@ -18,7 +18,6 @@ void UPlayerPhysics::DespawnGrappleProjectile()
 	GrappleProjectile->GetOwner()->Destroy();
 	GrappleProjectile = nullptr;
 	bIsGrappling = false;
-	GrappleVelocity = FVector::Zero();
 }
 
 void UPlayerPhysics::UpdatePhysics(float DeltaTime)
@@ -31,6 +30,12 @@ void UPlayerPhysics::UpdatePhysics(float DeltaTime)
 	Move.Force = AccumulatedForce;
 	Move.Time = GetWorld()->TimeSeconds;
 	Move.DeltaTime = DeltaTime;
+	if (GrappleProjectile && GrappleProjectile->AttachedTo) {
+		Move.bGrappleForce = true;
+	}
+	else {
+		Move.bGrappleForce = false;
+	}
 
 	//Execute move on client
 	APawn* Pawn = (APawn*)GetOwner();
@@ -40,14 +45,19 @@ void UPlayerPhysics::UpdatePhysics(float DeltaTime)
 		Move.bGrapple = bIsGrappling;
 		Move.EndPosition = GetOwner()->GetActorLocation();
 		Move.EndVelocity = ComponentVelocity;
-		MovesPendingValidation.Add(Move);
+
+		//Execute move on server
+		if (GetNetMode() == NM_Client)
+		{
+			ServerPerformMoveGrapple(Move);
+		}
 	}
 
-	//Execute move on server
-	if (GetNetMode() == NM_Client)
-	{
-		ServerPerformMoveGrapple(Move);
+	if (Move.bGrappleForce) {
+		Move.Force += PrevGrappleForce;
 	}
+	MovesPendingValidation.Add(Move);
+
 }
 
 
@@ -58,19 +68,13 @@ void UPlayerPhysics::UpdatePhysics(float DeltaTime)
 void UPlayerPhysics::PerformMove(FMove Move)
 {
 	//UE_LOG(LogTemp, Warning, TEXT("Hello"));
-	if (GrappleProjectile && GrappleProjectile->AttachedTo) {
+	if (Move.bGrappleForce) {
 		FVector direc = (GrappleProjectile->GetOwner()->GetActorLocation() - GetOwner()->GetActorLocation());
 		direc.Normalize();
 		// Move is not passed by ref, so grapple force added on the client will NOT affect the Move sent to the server.
 		// Server will calculate its own grapple force, maintaining authority.
 		Move.Force += (direc * GrappleStrength);
-
-		if (GetNetMode() == NM_Client) {
-			UE_LOG(LogTemp, Warning, TEXT("Move Force Client: %s"), *(Move.Force.ToString()))
-		}
-		if (GetNetMode() == NM_ListenServer) {
-			UE_LOG(LogTemp, Warning, TEXT("Move Force Server: %s"), *(Move.Force.ToString()))
-		}
+		PrevGrappleForce = (direc * GrappleStrength);
 	}
 
 	Super::PerformMove(Move);
@@ -83,11 +87,11 @@ void UPlayerPhysics::ServerPerformMoveGrapple_Implementation(FMove Move)
 		if (GrappleProjectile == nullptr) {
 			SpawnGrappleProjectile();
 			GrappleProjectile->SetComponentTickEnabled(false);
-			GrappleProjectile->UpdatePhysics(Move.Time - PrevTimestamp);
+			//GrappleProjectile->UpdatePhysics(Move.Time - PrevTimestamp);
 		}
-		else {
-			GrappleProjectile->UpdatePhysics(Move.Time - PrevTimestamp);
-		}
+
+		GrappleProjectile->UpdatePhysics(Move.Time - PrevTimestamp);
+
 	}
 	else {
 		DespawnGrappleProjectile();
