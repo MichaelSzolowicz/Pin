@@ -2,6 +2,8 @@
 
 #include "DrawDebugHelpers.h"
 
+#include "Kismet/KismetMathLibrary.h"
+
 void UNetworkedPhysics::BeginPlay()
 {
 	Super::BeginPlay();
@@ -123,14 +125,39 @@ void UNetworkedPhysics::PerformMove(FMove Move)
 	float dt = Move.Time - PrevTimestamp;
 	PrevTimestamp = Move.Time;
 
-	ComponentVelocity += (Move.Force / Mass) * dt;
-	AccumulatedForce = FVector::Zero();
-
 	FVector d = ComponentVelocity * (dt);
 	FVector dx = FVector(d.X, 0, 0);
 	FVector dy = FVector(0, d.Y, 0);
 	FVector dz = FVector(0, 0, d.Z);
 
+	FHitResult Hit;
+	TArray<FHitResult> OutHits;
+	FVector Start = UpdatedComponent->GetComponentLocation();
+	FVector End = Start + d;
+	FCollisionQueryParams CollisionParams;
+	CollisionParams.AddIgnoredActor(GetOwner());
+	GetWorld()->SweepMultiByChannel(OutHits, Start, End, FQuat::Identity, ECollisionChannel::ECC_Pawn, FCollisionShape::MakeSphere(53.0f), CollisionParams);
+
+
+	//MoveUpdatedComponent(d, UpdatedComponent->GetComponentRotation(), true, &Hit);
+	SafeMoveUpdatedComponent(d, UpdatedComponent->GetComponentRotation(), true, Hit);
+	if (Hit.IsValidBlockingHit()) {
+		SlideAlongSurface(d, 1.f - Hit.Time, Hit.Normal, Hit);
+	}
+
+	FVector N = FVector::Zero();
+	int i = 0;
+	for (i; i < OutHits.Num(); i++) {
+		N += OutHits[i].Normal;
+	}
+	UE_LOG(LogTemp, Warning, TEXT("Num Norms: %d"), i);
+	N.Normalize();
+	FHitResult TempHit;
+	TempHit.Normal = N;
+	ResolveCollision(TempHit);
+	
+
+	/*
 	// Update position
 	// Primitive component uses the normal most opposing the move as the hit norm.
 	// Moving each axis indepedently helps ensure every wall applies an opposing force and prevents wall "sticking"
@@ -164,6 +191,11 @@ void UNetworkedPhysics::PerformMove(FMove Move)
 		ResolveCollision(Hit);
 		SlideAlongSurface(dz, 1.f - Hit.Time, Hit.Normal, Hit);
 	}
+	*/
+	
+
+	ComponentVelocity += (Move.Force / Mass) * dt;
+	AccumulatedForce = FVector::Zero();
 }
 
 
@@ -172,7 +204,7 @@ void UNetworkedPhysics::ResolveCollision(FHitResult Hit)
 	// Assuming other actor is static, later I will need to find a different way to reliably get ComponentVelocity from all types of actor.
 	FVector rv = -ComponentVelocity;
 
-	double velAlongNormal = FVector::DotProduct(rv, Hit.Normal);
+	float velAlongNormal = FVector::DotProduct(rv, Hit.Normal);
 
 	if (velAlongNormal < 0) return;
 
@@ -224,7 +256,7 @@ void UNetworkedPhysics::CheckCompletedMove(FMove Move)
 	// The result of the move sent by the client is stored in struct members prefixed by "End."
 	bool correction = false;
 
-	if (FVector::Distance(Move.EndPosition, UpdatedComponent->GetComponentLocation()) >= MinCorrectionDistance)
+	if (FVector::Distance(Move.EndPosition, UpdatedComponent->GetComponentLocation()) > MinCorrectionDistance)
 	{
 		correction = true;
 	}
@@ -242,6 +274,7 @@ void UNetworkedPhysics::CheckCompletedMove(FMove Move)
 		// Floating point error still has a tendency to lead to desync and corrections, even when the client is sending valid moves.
 		// Tried having the server accept the client's velocity if the moves were close enough, but this still breaks server authority.
 		//ComponentVelocity = Move.EndVelocity;
+
 		LastValidatedMove = Move;
 		ClientApproveMove(Move.Time);
 	}
