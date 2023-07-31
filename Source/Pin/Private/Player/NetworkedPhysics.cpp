@@ -2,7 +2,6 @@
 
 #include "DrawDebugHelpers.h"
 
-#include "Kismet/KismetMathLibrary.h"
 
 void UNetworkedPhysics::BeginPlay()
 {
@@ -19,72 +18,18 @@ void UNetworkedPhysics::TickComponent(float DeltaTime, enum ELevelTick TickType,
 	UpdatePhysics(DeltaTime);
 }
 
-/*
-void UNetworkedPhysics::UpdatePhysics(float DeltaTime)
-{
-	CalcGravity();
 
-	// Delta position
-	FVector d = ComponentVelocity * DeltaTime;
-	FVector dx = FVector(d.X, 0, 0);
-	FVector dy = FVector(0, d.Y, 0);
-	FVector dz = FVector(0, 0, d.Z);
-
-	FVector N = FVector::Zero();
-
-	// x move
-	FHitResult OutHit;
-	SafeMoveUpdatedComponent(dx, UpdatedComponent->GetComponentRotation(), true, OutHit);
-
-	DrawDebugPoint(GetWorld(), OutHit.ImpactPoint, 20.f, FColor::Red, true, .01f);
-
-	if (OutHit.IsValidBlockingHit())
-	{
-		// Normal force
-		N += OutHit.Normal * FVector::DotProduct((-ComponentVelocity / DeltaTime), OutHit.Normal);
-
-		SlideAlongSurface(dx, 1.f - OutHit.Time, OutHit.Normal, OutHit);
-	}
-
-	// y move
-	SafeMoveUpdatedComponent(dy, UpdatedComponent->GetComponentRotation(), true, OutHit);
-
-	DrawDebugPoint(GetWorld(), OutHit.ImpactPoint, 20.f, FColor::Green, true, .01f);
-
-	if (OutHit.IsValidBlockingHit())
-	{
-		// Normal force
-		N += OutHit.Normal * FVector::DotProduct((-ComponentVelocity / DeltaTime), OutHit.Normal);
-
-		SlideAlongSurface(dy, 1.f - OutHit.Time, OutHit.Normal, OutHit);
-	}
-
-	// z move
-	SafeMoveUpdatedComponent(dz, UpdatedComponent->GetComponentRotation(), true, OutHit);
-
-	DrawDebugPoint(GetWorld(), OutHit.ImpactPoint, 20.f, FColor::Blue, true, .01f);
-
-	if (OutHit.IsValidBlockingHit())
-	{
-		// Normal force
-		N += OutHit.Normal * FVector::DotProduct((-ComponentVelocity / DeltaTime), OutHit.Normal);
-
-		SlideAlongSurface(dz, 1.f - OutHit.Time, OutHit.Normal, OutHit);
-	}
-
-	N.Normalize();
-	N *= FVector::DotProduct((-ComponentVelocity / DeltaTime), N);
-	AccumulatedForce += N;
-
-	// Acting forces (ignore mass for now, force acts as acceleration)
-	ComponentVelocity += AccumulatedForce * DeltaTime;
-
-	AccumulatedForce = FVector::Zero();
-}
+/**
+* Apply Accumulated Force as movement. Saves the resulting move and send it to the servers.
+* @param DeltaTime
 */
-
 void UNetworkedPhysics::UpdatePhysics(float DeltaTime)
 {
+	APawn* Pawn = (APawn*)GetOwner();
+	if (!(Pawn && Pawn->Controller && Pawn->Controller->IsLocalPlayerController())) {
+		return;
+	}
+
 	//Add natural forces.
 	CalcGravity();
 
@@ -92,17 +37,12 @@ void UNetworkedPhysics::UpdatePhysics(float DeltaTime)
 	FMove Move = FMove();
 	Move.Force = AccumulatedForce;
 	Move.Time = GetWorld()->TimeSeconds;
-	Move.DeltaTime = DeltaTime;
 
 	//Execute move on client
-	APawn* Pawn = (APawn*)GetOwner();
-	if (Pawn && Pawn->Controller && Pawn->Controller->IsLocalPlayerController())
-	{
-		PerformMove(Move);
-		Move.EndPosition = GetOwner()->GetActorLocation();
-		Move.EndVelocity = ComponentVelocity;
-		MovesPendingValidation.Add(Move);
-	}
+	PerformMove(Move);
+	Move.EndPosition = GetOwner()->GetActorLocation();
+	Move.EndVelocity = ComponentVelocity;
+	MovesPendingValidation.Add(Move);
 
 	//Execute move on server
 	if (GetNetMode() == NM_Client)
@@ -112,96 +52,67 @@ void UNetworkedPhysics::UpdatePhysics(float DeltaTime)
 }
 
 
+/*
+* Add gravitational force to Accumulated Force.
+*/
 void UNetworkedPhysics::CalcGravity()
 {
-	// Ignore mass (for the time being)
 	AccumulatedForce += FVector(0, 0, GetWorld()->GetGravityZ()) * Mass;
 }
 
 
+/**
+* Physically moves the updated component. Applies normal impulse.
+* @param Move The move to be performed.
+*/
 void UNetworkedPhysics::PerformMove(FMove Move)
 {
 	// Delta time
 	float dt = Move.Time - PrevTimestamp;
 	PrevTimestamp = Move.Time;
 
+	// Move delta
 	FVector d = ComponentVelocity * (dt);
-	FVector dx = FVector(d.X, 0, 0);
-	FVector dy = FVector(0, d.Y, 0);
-	FVector dz = FVector(0, 0, d.Z);
 
+	// Setup a sweep so we can get multiple overlaps
 	FHitResult Hit;
 	TArray<FHitResult> OutHits;
 	FVector Start = UpdatedComponent->GetComponentLocation();
 	FVector End = Start + d;
 	FCollisionQueryParams CollisionParams;
 	CollisionParams.AddIgnoredActor(GetOwner());
-	GetWorld()->SweepMultiByChannel(OutHits, Start, End, FQuat::Identity, ECollisionChannel::ECC_Pawn, FCollisionShape::MakeSphere(53.0f), CollisionParams);
+	GetWorld()->SweepMultiByChannel(OutHits, End, End, FQuat::Identity, ECollisionChannel::ECC_Pawn, FCollisionShape::MakeSphere(53.0f), CollisionParams);
 
-
-	//MoveUpdatedComponent(d, UpdatedComponent->GetComponentRotation(), true, &Hit);
-	SafeMoveUpdatedComponent(d, UpdatedComponent->GetComponentRotation(), true, Hit);
+	// Move
+	MoveUpdatedComponent(d, UpdatedComponent->GetComponentRotation(), true, &Hit);
 	if (Hit.IsValidBlockingHit()) {
 		SlideAlongSurface(d, 1.f - Hit.Time, Hit.Normal, Hit);
 	}
 
+	// Average the sweep overlap normals
 	FVector N = FVector::Zero();
 	int i = 0;
 	for (i; i < OutHits.Num(); i++) {
 		N += OutHits[i].Normal;
 	}
-	UE_LOG(LogTemp, Warning, TEXT("Num Norms: %d"), i);
+	//UE_LOG(LogTemp, Warning, TEXT("Num Norms: %d"), i);
 	N.Normalize();
 	FHitResult TempHit;
 	TempHit.Normal = N;
 	ResolveCollision(TempHit);
-	
-
-	/*
-	// Update position
-	// Primitive component uses the normal most opposing the move as the hit norm.
-	// Moving each axis indepedently helps ensure every wall applies an opposing force and prevents wall "sticking"
-	// I think I could find a better approach, but for now it just needs to get something up and running.
-	FHitResult Hit;
-	MoveUpdatedComponent(dx, UpdatedComponent->GetComponentRotation(), true, &Hit);
-
-	// Handle overlaps
-	if (Hit.IsValidBlockingHit())
-	{
-		ResolveCollision(Hit);
-		SlideAlongSurface(dx, 1.f - Hit.Time, Hit.Normal, Hit);
-	}
-
-	// Y move
-	MoveUpdatedComponent(dy, UpdatedComponent->GetComponentRotation(), true, &Hit);
-
-	// Handle overlaps
-	if (Hit.IsValidBlockingHit())
-	{
-		ResolveCollision(Hit);
-		SlideAlongSurface(dy, 1.f - Hit.Time, Hit.Normal, Hit);
-	}
-
-	// Z move
-	MoveUpdatedComponent(dz, UpdatedComponent->GetComponentRotation(), true, &Hit);
-
-	// Handle overlaps
-	if (Hit.IsValidBlockingHit())
-	{
-		ResolveCollision(Hit);
-		SlideAlongSurface(dz, 1.f - Hit.Time, Hit.Normal, Hit);
-	}
-	*/
-	
 
 	ComponentVelocity += (Move.Force / Mass) * dt;
 	AccumulatedForce = FVector::Zero();
 }
 
 
+/**
+* Calculates the normal impulse.
+* @param Hit The hit struct we will find the normal impulse for.
+*/
 void UNetworkedPhysics::ResolveCollision(FHitResult Hit)
 {
-	// Assuming other actor is static, later I will need to find a different way to reliably get ComponentVelocity from all types of actor.
+	// Assuming other actor is static. Later I will need to find a different way to reliably get ComponentVelocity from all types of actor.
 	FVector rv = -ComponentVelocity;
 
 	float velAlongNormal = FVector::DotProduct(rv, Hit.Normal);
@@ -220,6 +131,21 @@ void UNetworkedPhysics::ResolveCollision(FHitResult Hit)
 }
 
 
+/**
+* RPC to execute and validate a move on the server.
+* @param Move The move to be executed.
+*/
+void UNetworkedPhysics::ServerPerformMove_Implementation(FMove Move)
+{
+	PerformMove(Move);
+	CheckCompletedMove(Move);
+}
+
+
+/**
+* Used to check move inputs before executing the move.
+* @param Move The move to be checked.
+*/
 bool UNetworkedPhysics::ServerValidateMove(FMove Move)
 {
 	// Will fill out this function later.
@@ -233,103 +159,95 @@ bool UNetworkedPhysics::ServerValidateMove(FMove Move)
 }
 
 
-void UNetworkedPhysics::ServerPerformMove_Implementation(FMove Move)
-{
-	PerformMove(Move);
-	CheckCompletedMove(Move);
-}
-
-
-bool UNetworkedPhysics::ServerPerformMove_Validate(FMove Move)
-{
-	// When declaring a RPC WithValidation, the _Validate function is automatically called and will disconnect the client if it returns false.
-	// Only use this feature if you are sure the client is cheating.
-
-	//UE_LOG(LogTemp, Warning, TEXT("Server Validate"));
-	return true;
-}
-
-
+/**
+* Checks a move executed on the server against the result submitted by the client.
+* Submits a correction if there is a large enough discrepency, approves move otherwise.
+* @param Move The move to check.
+*/
 void UNetworkedPhysics::CheckCompletedMove(FMove Move)
 {
 	// The server's most recent approved position, velocity, etc. is assigned to the components they belong to.
 	// The result of the move sent by the client is stored in struct members prefixed by "End."
 	bool correction = false;
 
-	if (FVector::Distance(Move.EndPosition, UpdatedComponent->GetComponentLocation()) > MinCorrectionDistance)
-	{
+	if (FVector::Distance(Move.EndPosition, UpdatedComponent->GetComponentLocation()) > MinCorrectionDistance) {
 		correction = true;
 	}
 
-	if (correction)
-	{
+	if (correction) {
 		Move.EndPosition = UpdatedComponent->GetComponentLocation();
 		Move.EndVelocity = ComponentVelocity;
 		LastValidatedMove = Move;
 
 		ClientCorrection(Move);
 	}
-	else
-	{
-		// Floating point error still has a tendency to lead to desync and corrections, even when the client is sending valid moves.
-		// Tried having the server accept the client's velocity if the moves were close enough, but this still breaks server authority.
-		//ComponentVelocity = Move.EndVelocity;
-
+	else {
 		LastValidatedMove = Move;
 		ClientApproveMove(Move.Time);
 	}
 }
 
+
+/**
+* Client RPC for receiving correction.
+* @param Move The corrected move.
+*/
 void UNetworkedPhysics::ClientCorrection_Implementation(FMove Move)
 {
-	UE_LOG(LogTemp, Warning, TEXT("Correction %f"), GetWorld()->TimeSeconds);
+	//UE_LOG(LogTemp, Warning, TEXT("Correction %f"), GetWorld()->TimeSeconds);
+
 	UpdatedComponent->SetWorldLocation(Move.EndPosition);
 	ComponentVelocity = Move.EndVelocity;
 	
-
 	int Num = MovesPendingValidation.Num();
-	for (int i = 0; i < Num; i++)
-	{
-		if (MovesPendingValidation[0].Time <= Move.Time)
-		{
-			MovesPendingValidation.RemoveAt(0);
+	for (int i = 0; i < Num; i++) {
+		// Remove all moves prior to the corrected move.
+		if (MovesPendingValidation[0].Time <= Move.Time) {
+			MovesPendingValidation.RemoveAt(0); 
 		}
-		else
-		{
+		else {
+			PrevTimestamp = MovesPendingValidation[0].Time;
 			break;
 		}
 	}
-	for (int i = 0; i < MovesPendingValidation.Num(); i++)
-	{
-		PrevTimestamp = MovesPendingValidation[i].Time - MovesPendingValidation[i].DeltaTime;
-		MovesPendingValidation[i].bGrappleForce = false;
+
+	for (int i = 0; i < MovesPendingValidation.Num(); i++) {
+		// Execute the remaining moves in moves pending validation.
 		PerformMove(MovesPendingValidation[i]);
 	}
+	// Reset the prev timestamp.
 	PrevTimestamp = GetWorld()->TimeSeconds;
 }
 
+
+/**
+* Client RPC for receiving move approvals.
+* @param Timestamp The timestamp of the approved move.
+*/
 void UNetworkedPhysics::ClientApproveMove_Implementation(float Timestamp)
 {
 	// Remove moves that occured before the approved move.
 	int Num = MovesPendingValidation.Num();
-	for (int i = 0; i < Num; i++)
-	{
-		if (MovesPendingValidation[0].Time <= Timestamp)
-		{
+	for (int i = 0; i < Num; i++) {
+		if (MovesPendingValidation[0].Time <= Timestamp) {
 			MovesPendingValidation.RemoveAt(0);
 		}
-		else
-		{
+		else {
 			break;
 		}
 	}
 }
 
+
+/**
+* Add force to Accumulated Force.
+* @param Force The force to add.
+*/
 void UNetworkedPhysics::AddForce(FVector Force)
 {
-	//UE_LOG(LogTemp, Warning, TEXT("Velocity"));
 	AccumulatedForce += Force;
 }
+
 
 float UNetworkedPhysics::AngleBetweenVectors(FVector v1, FVector v2)
 {

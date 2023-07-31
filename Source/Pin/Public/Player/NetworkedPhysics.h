@@ -12,23 +12,14 @@ struct FMove
 	GENERATED_BODY()
 
 public:
-	// Delta time should be changed to a timestamp, server uses diff with previous as delta.
-	// Force should, specifically, be the input force. From keys. Grapple input will later 
-	// on be calculated server-side if a bool indicating the key is held is sent.
 	UPROPERTY()
 		float Time = -1.0f;
-	UPROPERTY()
-		float DeltaTime;
 	UPROPERTY()
 		FVector Force;
 	UPROPERTY()
 		FVector EndVelocity;
 	UPROPERTY()
 		FVector EndPosition;
-	UPROPERTY()
-		bool bGrapple;
-	UPROPERTY()
-		bool bGrappleForce = false;
 };
 
 
@@ -72,34 +63,72 @@ public:
 
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
+	/**
+	* Apply Accumulated Force as movement. Saves the resulting move and send it to the servers.
+	* @param DeltaTime
+	*/
 	virtual void UpdatePhysics(float DeltaTime);
 
+	/*
+	* Add gravitational force to Accumulated Force.
+	*/
 	void CalcGravity();
 
+	/**
+	* Physically moves the updated component. Applies normal impulse.
+	* @param Move The move to be performed.
+	*/
 	UFUNCTION()
 	virtual void PerformMove(FMove Move);
 
+	/**
+	* Calculates the normal impulse.
+	* @param Hit The hit struct we will find the normal impulse for.
+	*/
 	void ResolveCollision(FHitResult Hit);
 
-	/* Used to check move inputs before executing the move. */
-	bool ServerValidateMove(FMove Move);
-
-	UFUNCTION(Server, Unreliable, WithValidation)
+	/**
+	* RPC to execute and validate a move on the server.
+	* @param Move The move to be executed.
+	*/
+	UFUNCTION(Server, Unreliable)
 	void ServerPerformMove(FMove Move);
 	void ServerPerformMove_Implementation(FMove Move);
-	bool ServerPerformMove_Validate(FMove Move);
 
+	/**
+	* Used to check move inputs before executing the move.
+	* @param Move The move to be checked.
+	*/
+	bool ServerValidateMove(FMove Move);
+
+	/**
+	* Checks a move executed on the server against the result submitted by the client.
+	* Submits a correction if there is a large enough discrepency, approves move otherwise.
+	* @param Move The move to check.
+	*/
 	UFUNCTION()
 	virtual void CheckCompletedMove(FMove Move);
 
+	/**
+	* Client RPC for receiving correction.
+	* @param Move The corrected move.
+	*/
 	UFUNCTION(Client, Reliable)
 	void ClientCorrection(FMove Move);
 	virtual void ClientCorrection_Implementation(FMove Move);
 
+	/**
+	* Client RPC for receiving move approvals.
+	* @param Timestamp The timestamp of the approved move.
+	*/
 	UFUNCTION(Client, Reliable)
 	void ClientApproveMove(float Timestamp);
 	void ClientApproveMove_Implementation(float Timestamp);
 
+	/**
+	* Add force to Accumulated Force.
+	* @param Force The force to add.
+	*/
 	UFUNCTION(BlueprintCallable)
 	void AddForce(FVector Force);
 
@@ -107,12 +136,12 @@ public:
 	float InverseMass() { return 1 / Mass; }
 
 	/*Utility functions.*/
-		/*
-		* Returns the angle between two vectors.
-		* @param v1
-		* @param v2
-		* @return angle
-		*/
+	/**
+	* Returns the angle between two vectors.
+	* @param v1
+	* @param v2
+	* @return angle
+	*/
 	float AngleBetweenVectors(FVector v1, FVector v2);
 
 	/*Getter functions.*/
