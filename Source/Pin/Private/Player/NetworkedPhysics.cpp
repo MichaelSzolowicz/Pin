@@ -71,35 +71,43 @@ void UNetworkedPhysics::PerformMove(FMove Move)
 	float dt = Move.Time - PrevTimestamp;
 	PrevTimestamp = Move.Time;
 
-	// Move delta
-	FVector d = ComponentVelocity * (dt);
+	// Delta position
+	FVector d = ComponentVelocity * dt;
+	FVector dx = FVector(d.X, 0, 0);
+	FVector dy = FVector(0, d.Y, 0);
+	FVector dz = FVector(0, 0, d.Z);
 
-	// Setup a sweep so we can get multiple overlaps
+	// Update our position
 	FHitResult Hit;
-	TArray<FHitResult> OutHits;
-	FVector Start = UpdatedComponent->GetComponentLocation();
-	FVector End = Start + d;
-	FCollisionQueryParams CollisionParams;
-	CollisionParams.AddIgnoredActor(GetOwner());
-	GetWorld()->SweepMultiByChannel(OutHits, End, End, FQuat::Identity, ECollisionChannel::ECC_Pawn, FCollisionShape::MakeSphere(53.0f), CollisionParams);
+	SafeMoveUpdatedComponent(dx, UpdatedComponent->GetComponentRotation(), true, Hit);
 
-	// Move
-	MoveUpdatedComponent(d, UpdatedComponent->GetComponentRotation(), true, &Hit);
-	if (Hit.IsValidBlockingHit()) {
-		SlideAlongSurface(d, 1.f - Hit.Time, Hit.Normal, Hit);
+	// Handle overlaps
+	if (Hit.IsValidBlockingHit())
+	{
+		ResolveCollision(Hit);
+		SlideAlongSurface(dx, 1.f - Hit.Time, Hit.Normal, Hit);
 	}
 
-	// Average the sweep overlap normals
-	FVector N = FVector::Zero();
-	int i = 0;
-	for (i; i < OutHits.Num(); i++) {
-		N += OutHits[i].Normal;
+	// Y move
+	SafeMoveUpdatedComponent(dy, UpdatedComponent->GetComponentRotation(), true, Hit);
+
+	// Handle overlaps
+	if (Hit.IsValidBlockingHit())
+	{
+		ResolveCollision(Hit);
+		SlideAlongSurface(dy, 1.f - Hit.Time, Hit.Normal, Hit);
 	}
-	//UE_LOG(LogTemp, Warning, TEXT("Num Norms: %d"), i);
-	N.Normalize();
-	FHitResult TempHit;
-	TempHit.Normal = N;
-	ResolveCollision(TempHit);
+
+	// Z move
+	SafeMoveUpdatedComponent(dz, UpdatedComponent->GetComponentRotation(), true, Hit);
+
+	// Handle overlaps
+	if (Hit.IsValidBlockingHit())
+	{
+		ResolveCollision(Hit);
+		SlideAlongSurface(dz, 1.f - Hit.Time, Hit.Normal, Hit);
+	}
+
 
 	ComponentVelocity += (Move.Force / Mass) * dt;
 	AccumulatedForce = FVector::Zero();
@@ -194,7 +202,10 @@ void UNetworkedPhysics::CheckCompletedMove(FMove Move)
 */
 void UNetworkedPhysics::ClientCorrection_Implementation(FMove Move)
 {
-	//UE_LOG(LogTemp, Warning, TEXT("Correction %f"), GetWorld()->TimeSeconds);
+	static int numCorrections = 0;
+	numCorrections++;
+
+	UE_LOG(LogTemp, Warning, TEXT("Corrections: %d, Time: %f"), numCorrections, GetWorld()->TimeSeconds);
 
 	UpdatedComponent->SetWorldLocation(Move.EndPosition);
 	ComponentVelocity = Move.EndVelocity;
