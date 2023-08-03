@@ -34,6 +34,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grapple")
 		FVector PrevGrappleForce;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Reticle")
+		class UReticle* Reticle;
+
 protected:
 	/**
 	* Overriden from UNetworkedPhysics. Adds grapple force, then performs move.
