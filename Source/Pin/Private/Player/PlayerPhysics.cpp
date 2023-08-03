@@ -1,6 +1,7 @@
-#include "Player/Reticle.h"
-
 #include "Player/PlayerPhysics.h"
+
+
+#include "Player/Reticle.h"
 
 
 /**
@@ -11,6 +12,10 @@
 void UPlayerPhysics::SpawnGrappleProjectile()
 {
 	AActor* NewProj = GetWorld()->SpawnActor<AActor>(GrappleProjectileClass, GetOwner()->GetActorLocation(), GetOwner()->GetActorRotation());
+	
+	FVector ReticleOffset3D = FVector(ReticleOffset.X, ReticleOffset.Y, 0.0f);
+	FRotator Rot = (ReticleOffset3D - FVector::Zero()).Rotation();
+	NewProj->SetActorRotation(Rot);
 
 	GrappleProjectile = (UStickyProjectile*)(NewProj->GetComponentByClass(UStickyProjectile::StaticClass()));
 	bIsGrappling = true;
@@ -47,6 +52,7 @@ void UPlayerPhysics::UpdatePhysics(float DeltaTime)
 	FMove Move = FMove();
 	Move.Force = AccumulatedForce;
 	Move.Time = GetWorld()->TimeSeconds;
+	//ReticleOffset = FVector2D(Reticle->GetRelativeLocation().X, Reticle->GetRelativeLocation().Y);
 
 	//Execute move on client
 	PerformMove(Move);
@@ -55,7 +61,7 @@ void UPlayerPhysics::UpdatePhysics(float DeltaTime)
 
 	//Execute move on server
 	if (GetNetMode() == NM_Client) {
-		ServerPerformMoveGrapple(Move, bIsGrappling);
+		ServerPerformMoveGrapple(Move, bIsGrappling, ReticleOffset);
 	}
 
 	Move.Force += PrevGrappleForce;
@@ -106,7 +112,7 @@ void UPlayerPhysics::PerformMove(FMove Move)
 * @param Move The move to be performed and checked.
 * @param bGrapple Pass true if the client is trying to grapple.
 */
-void UPlayerPhysics::ServerPerformMoveGrapple_Implementation(FMove Move, bool bGrapple)
+void UPlayerPhysics::ServerPerformMoveGrapple_Implementation(FMove Move, bool bGrapple, FVector2D NewReticleOffset)
 {
 	if (bGrapple) {
 		// Spawn grapple projectile if the server does not have one.
@@ -120,6 +126,8 @@ void UPlayerPhysics::ServerPerformMoveGrapple_Implementation(FMove Move, bool bG
 	else {
 		DespawnGrappleProjectile();
 	}
+
+	ReticleOffset = NewReticleOffset;
 
 	PerformMove(Move);
 	CheckCompletedMove(Move);

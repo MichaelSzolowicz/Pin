@@ -35,7 +35,7 @@ public:
 		FVector PrevGrappleForce;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Reticle")
-		class UReticle* Reticle;
+		FVector2D ReticleOffset;
 
 protected:
 	/**
@@ -52,8 +52,8 @@ protected:
 	* @param bGrapple Pass true if the client is trying to grapple.
 	*/
 	UFUNCTION(Server, Unreliable)
-	void ServerPerformMoveGrapple(FMove Move, bool bGrapple);
-	void ServerPerformMoveGrapple_Implementation(FMove Move, bool bGrapple);
+	void ServerPerformMoveGrapple(FMove Move, bool bGrapple, FVector2D ReticleLoc);
+	void ServerPerformMoveGrapple_Implementation(FMove Move, bool bGrapple, FVector2D ReticleLoc);
 
 	/**
 	* Spawn a projectile of GrappleProjectileClass. Always spawns a projectile, always overwrites GrappleProjectile variable.

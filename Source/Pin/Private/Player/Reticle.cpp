@@ -28,9 +28,20 @@ void UReticle::TickComponent(float DeltaTime, ELevelTick TickType, FActorCompone
 */
 FVector UReticle::AddInput(FVector2D Input)
 {
-	FVector Input3D = FVector(Input.X, Input.Y, 0.f);
-	AddWorldOffset(Input3D * Sensitivity);
+	SetRelativeLocation(FVector(Input.X, Input.Y, 0.f));
+
+	ClampPos();
 
 	return GetComponentLocation();
+}
+
+void UReticle::ClampPos()
+{
+	FVector Clamped = GetRelativeLocation();
+	if (Clamped.Size() > MaxRadius) {
+		Clamped.Normalize();
+		Clamped *= MaxRadius;
+		SetRelativeLocation(Clamped);
+	}
 }
 
