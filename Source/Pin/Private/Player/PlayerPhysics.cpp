@@ -45,9 +45,6 @@ void UPlayerPhysics::UpdatePhysics(float DeltaTime)
 		return;
 	}
 
-	//Add natural forces.
-	CalcGravity();
-
 	// Construct the move to be executed.
 	FMove Move = FMove();
 	Move.Force = AccumulatedForce;
@@ -98,8 +95,6 @@ void UPlayerPhysics::PerformMove(FMove Move)
 		if (GrappleProjectile && GrappleProjectile->AttachedTo) {
 			FVector direc = (GrappleProjectile->GetOwner()->GetActorLocation() - GetOwner()->GetActorLocation());
 			direc.Normalize();
-			// Move is not passed by ref, so grapple force added on the client will NOT affect the Move sent to the server.
-			// Server will calculate its own grapple force, maintaining authority.
 			Move.Force += (direc * GrappleStrength);
 			PrevGrappleForce = (direc * GrappleStrength);
 		}
@@ -129,6 +124,5 @@ void UPlayerPhysics::ServerPerformMoveGrapple_Implementation(FMove Move, bool bG
 
 	ReticleOffset = NewReticleOffset;
 
-	PerformMove(Move);
-	CheckCompletedMove(Move);
+	ServerPerformMove(Move);
 }

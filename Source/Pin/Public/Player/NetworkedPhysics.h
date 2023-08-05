@@ -32,7 +32,14 @@ class PIN_API UNetworkedPhysics : public UMovementComponent
 	GENERATED_BODY()
 
 public:
-	/* Variable related to physics */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics")
+		float MaxAccumulatedForce = 240000.0f;
+
+	// IE forces that should be calculated server side.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Physics")
+		FVector NaturalForce;
+
+	// Force that gets sent to the server via ServerPerformMove. Should not includ forces like gravity or grapple, which are calculated server side.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Physics")
 		FVector AccumulatedForce;
 
@@ -48,6 +55,9 @@ public:
 	/* Variables related to networking */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Networking")
 		float MinCorrectionDistance;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Networking")
+		float MaxDelta = .0166f;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Networking")
 		TArray<FMove> MovesPendingValidation;
@@ -75,7 +85,8 @@ public:
 	void CalcGravity();
 
 	/**
-	* Physically moves the updated component. Applies normal impulse.
+	* Apply Accumulated Force as movement. Saves the resulting move and send it to the servers.
+	* Also applies natural forces. Note this function should later be decomposed into multiple functions.
 	* @param Move The move to be performed.
 	*/
 	UFUNCTION()
@@ -99,7 +110,7 @@ public:
 	* Used to check move inputs before executing the move.
 	* @param Move The move to be checked.
 	*/
-	bool ServerValidateMove(FMove Move);
+	bool ServerValidateMove(FMove &Move);
 
 	/**
 	* Checks a move executed on the server against the result submitted by the client.
@@ -131,6 +142,9 @@ public:
 	*/
 	UFUNCTION(BlueprintCallable)
 	void AddForce(FVector Force);
+
+	UFUNCTION(BlueprintCallable)
+		void AddInput(FVector2D Input, float Strength);
 
 	UFUNCTION(BlueprintCallable)
 	float InverseMass() { return 1 / Mass; }

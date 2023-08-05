@@ -21,6 +21,7 @@ void UNetworkedPhysics::TickComponent(float DeltaTime, enum ELevelTick TickType,
 
 /**
 * Apply Accumulated Force as movement. Saves the resulting move and send it to the servers.
+* Also applies natural forces. Note this function should later be decomposed into multiple functions.
 * @param DeltaTime
 */
 void UNetworkedPhysics::UpdatePhysics(float DeltaTime)
@@ -30,15 +31,11 @@ void UNetworkedPhysics::UpdatePhysics(float DeltaTime)
 		return;
 	}
 
-	//Add natural forces.
-	CalcGravity();
-
 	// Construct the move to be executed.
 	FMove Move = FMove();
 	Move.Force = AccumulatedForce;
 	Move.Time = GetWorld()->TimeSeconds;
 
-	//Execute move on client
 	PerformMove(Move);
 	Move.EndPosition = GetOwner()->GetActorLocation();
 	Move.EndVelocity = ComponentVelocity;
@@ -53,11 +50,11 @@ void UNetworkedPhysics::UpdatePhysics(float DeltaTime)
 
 
 /*
-* Add gravitational force to Accumulated Force.
+* Add gravitational force to Natural Force.
 */
 void UNetworkedPhysics::CalcGravity()
 {
-	AccumulatedForce += FVector(0, 0, GetWorld()->GetGravityZ()) * Mass;
+	NaturalForce += FVector(0, 0, GetWorld()->GetGravityZ()) * Mass;
 }
 
 
@@ -67,6 +64,9 @@ void UNetworkedPhysics::CalcGravity()
 */
 void UNetworkedPhysics::PerformMove(FMove Move)
 {
+	// Natural forces
+	CalcGravity();
+
 	// Delta time
 	float dt = Move.Time - PrevTimestamp;
 	PrevTimestamp = Move.Time;
@@ -109,8 +109,9 @@ void UNetworkedPhysics::PerformMove(FMove Move)
 	}
 
 
-	ComponentVelocity += (Move.Force / Mass) * dt;
+	ComponentVelocity += ((Move.Force + NaturalForce) / Mass) * dt;
 	AccumulatedForce = FVector::Zero();
+	NaturalForce = FVector::Zero();
 }
 
 
@@ -145,6 +146,10 @@ void UNetworkedPhysics::ResolveCollision(FHitResult Hit)
 */
 void UNetworkedPhysics::ServerPerformMove_Implementation(FMove Move)
 {
+	// Natural forces that should be calculated server side, like grapple and gravity, are calculated in PerformMove().
+	// At this point, we have just received the move should assume Move.Force contains only the force the player is trying to directly add.
+	ServerValidateMove(Move);
+
 	PerformMove(Move);
 	CheckCompletedMove(Move);
 }
@@ -154,16 +159,14 @@ void UNetworkedPhysics::ServerPerformMove_Implementation(FMove Move)
 * Used to check move inputs before executing the move.
 * @param Move The move to be checked.
 */
-bool UNetworkedPhysics::ServerValidateMove(FMove Move)
+bool UNetworkedPhysics::ServerValidateMove(FMove &Move)
 {
-	// Will fill out this function later.
-	// I need a better system for determining if a move is valid.
-	// I think I should break player input and natural physical forces into seperate inputs.
-	// This way the server can validate them seperatly, w/out running into issues like capping the max fall speed when we don't want to.
-
-	// Although in this case we might only need to send over the input. Physical forces should be the same on the server, so we can calculate those
-	// using the constants on the server and client provided delta time.
-	return false;
+	if (Move.Force.Size() > MaxAccumulatedForce) {
+		Move.Force.Normalize();
+		Move.Force *= MaxAccumulatedForce;
+		return false;
+	}
+	return true;
 }
 
 
@@ -257,6 +260,13 @@ void UNetworkedPhysics::ClientApproveMove_Implementation(float Timestamp)
 void UNetworkedPhysics::AddForce(FVector Force)
 {
 	AccumulatedForce += Force;
+}
+
+void UNetworkedPhysics::AddInput(FVector2D Input, float Strength)
+{
+	FVector AppliedForce = FVector(Input, 0.f);
+	AppliedForce.Normalize();
+	AccumulatedForce = AppliedForce * Strength;
 }
 
 
