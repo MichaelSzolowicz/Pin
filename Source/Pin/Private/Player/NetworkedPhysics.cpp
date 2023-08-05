@@ -146,8 +146,10 @@ void UNetworkedPhysics::ResolveCollision(FHitResult Hit)
 */
 void UNetworkedPhysics::ServerPerformMove_Implementation(FMove Move)
 {
-	// Natural forces that should be calculated server side, like grapple and gravity, are calculated in PerformMove().
+	OnServerReceiveMove();
+
 	// At this point, we have just received the move should assume Move.Force contains only the force the player is trying to directly add.
+	// Natural forces that should be calculated server side, like grapple and gravity, are calculated in PerformMove().
 	ServerValidateMove(Move);
 
 	PerformMove(Move);

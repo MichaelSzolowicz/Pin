@@ -35,7 +35,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics")
 		float MaxAccumulatedForce = 240000.0f;
 
-	// IE forces that should be calculated server side.
+	// Forces that should be calculated server side. These forces are usually calculated at the start of PerformMove(), after all other relavant forces have been resolved.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Physics")
 		FVector NaturalForce;
 
@@ -105,6 +105,12 @@ public:
 	UFUNCTION(Server, Unreliable)
 	void ServerPerformMove(FMove Move);
 	void ServerPerformMove_Implementation(FMove Move);
+
+	/**
+	* Used to let blueprints know the authorative physics component has received an update.
+	*/
+	UFUNCTION(BlueprintImplementableEvent)
+	void OnServerReceiveMove();
 
 	/**
 	* Used to check move inputs before executing the move.

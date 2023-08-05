@@ -1,9 +1,6 @@
 #include "Player/PlayerPhysics.h"
 
 
-#include "Player/Reticle.h"
-
-
 /**
 * Spawn a projectile of GrappleProjectileClass. Always spawns a projectile.
 * Looks for a UStickyProjectile component on the spawned actor. Sets GrappleProjectile equal to this component.
@@ -61,6 +58,8 @@ void UPlayerPhysics::UpdatePhysics(float DeltaTime)
 		ServerPerformMoveGrapple(Move, bIsGrappling, ReticleOffset);
 	}
 
+	// At this point the move has been sent and Move.Force is no longer assumed to be input the player is adding directly.
+	// I add the grapple force to the saved move so that it gets recalculated in the event of a correction.
 	Move.Force += PrevGrappleForce;
 	
 	MovesPendingValidation.Add(Move);
@@ -70,7 +69,7 @@ void UPlayerPhysics::UpdatePhysics(float DeltaTime)
 /**
 * Overriden from UNetworkedPhysics. Adds grapple force, then performs move.
 * Intended to make sure client's final position accounts for grapple force while excluding grapple force from the force vector sent to the server. 
-* If running on the server, server will calculate its own grapple force.
+* If running on the server, server will calculate its own grapple force. 
 * @param Move The move to be executed.
 */
 void UPlayerPhysics::PerformMove(FMove Move)
@@ -80,9 +79,8 @@ void UPlayerPhysics::PerformMove(FMove Move)
 		if (Move.Time >= GetWorld()->TimeSeconds && GrappleProjectile && GrappleProjectile->AttachedTo) {
 			FVector direc = (GrappleProjectile->GetOwner()->GetActorLocation() - GetOwner()->GetActorLocation());
 			direc.Normalize();
-			// Move is not passed by ref, so grapple force added on the client will NOT affect the Move sent to the server.
-			// Server will calculate its own grapple force, maintaining authority.
-			Move.Force += (direc * GrappleStrength);
+			// Grapple force is considered a natural force since it is contextual to the environment, not player input directly.
+			NaturalForce += (direc * GrappleStrength);
 			PrevGrappleForce = (direc * GrappleStrength);
 		}
 		else {
@@ -95,7 +93,8 @@ void UPlayerPhysics::PerformMove(FMove Move)
 		if (GrappleProjectile && GrappleProjectile->AttachedTo) {
 			FVector direc = (GrappleProjectile->GetOwner()->GetActorLocation() - GetOwner()->GetActorLocation());
 			direc.Normalize();
-			Move.Force += (direc * GrappleStrength);
+			// Grapple force is considered a natural force since it is contextual to the environment, not player input directly.
+			NaturalForce += (direc * GrappleStrength);
 			PrevGrappleForce = (direc * GrappleStrength);
 		}
 		Super::PerformMove(Move);
