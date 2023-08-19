@@ -121,6 +121,8 @@ void UPlayerPhysics::ServerPerformMoveGrapple_Implementation(FMove Move, bool bG
 		DespawnGrappleProjectile();
 	}
 
+	//...
+
 	ReticleOffset = NewReticleOffset;
 
 	ServerPerformMove(Move);

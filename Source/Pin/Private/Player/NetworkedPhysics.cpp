@@ -71,43 +71,21 @@ void UNetworkedPhysics::PerformMove(FMove Move)
 	float dt = Move.Time - PrevTimestamp;
 	PrevTimestamp = Move.Time;
 
-	// Delta position
-	FVector d = ComponentVelocity * dt;
-	FVector dx = FVector(d.X, 0, 0);
-	FVector dy = FVector(0, d.Y, 0);
-	FVector dz = FVector(0, 0, d.Z);
+	if (dt <= 0) return;
 
-	// Update our position
-	FHitResult Hit;
-	SafeMoveUpdatedComponent(dx, UpdatedComponent->GetComponentRotation(), true, Hit);
-
-	// Handle overlaps
-	if (Hit.IsValidBlockingHit())
-	{
-		ResolveCollision(Hit);
-		SlideAlongSurface(dx, 1.f - Hit.Time, Hit.Normal, Hit);
+	for (int i = 0; i < 3; i++) {
+		FVector Mask = FVector(0,0,0);
+		Mask[i]++;
+		FVector DeltaPos = ComponentVelocity * dt * Mask;
+		// Update position
+		FHitResult Hit;
+		SafeMoveUpdatedComponent(DeltaPos, UpdatedComponent->GetComponentRotation(), true, Hit);
+		// Handle overlaps
+		if (Hit.IsValidBlockingHit()) {
+			ResolveCollision(Hit);	// Normal impulse.
+			SlideAlongSurface(DeltaPos, 1.f - Hit.Time, Hit.Normal, Hit);
+		}
 	}
-
-	// Y move
-	SafeMoveUpdatedComponent(dy, UpdatedComponent->GetComponentRotation(), true, Hit);
-
-	// Handle overlaps
-	if (Hit.IsValidBlockingHit())
-	{
-		ResolveCollision(Hit);
-		SlideAlongSurface(dy, 1.f - Hit.Time, Hit.Normal, Hit);
-	}
-
-	// Z move
-	SafeMoveUpdatedComponent(dz, UpdatedComponent->GetComponentRotation(), true, Hit);
-
-	// Handle overlaps
-	if (Hit.IsValidBlockingHit())
-	{
-		ResolveCollision(Hit);
-		SlideAlongSurface(dz, 1.f - Hit.Time, Hit.Normal, Hit);
-	}
-
 
 	ComponentVelocity += ((Move.Force + NaturalForce) / Mass) * dt;
 	AccumulatedForce = FVector::Zero();
@@ -205,13 +183,7 @@ void UNetworkedPhysics::CheckCompletedMove(FMove Move)
 * Client RPC for receiving correction.
 * @param Move The corrected move.
 */
-void UNetworkedPhysics::ClientCorrection_Implementation(FMove Move)
-{
-	static int numCorrections = 0;
-	numCorrections++;
-
-	UE_LOG(LogTemp, Warning, TEXT("Corrections: %d, Time: %f"), numCorrections, GetWorld()->TimeSeconds);
-
+void UNetworkedPhysics::ClientCorrection_Implementation(FMove Move) {
 	UpdatedComponent->SetWorldLocation(Move.EndPosition);
 	ComponentVelocity = Move.EndVelocity;
 	
