@@ -84,11 +84,10 @@ FVector UAiSteering::WeighDanger(FHitResult& Hit, float Radius)
 
 	// The closer we are to the danger, the stronger we want to avoid it.
 	scale = Radius / scale;
+	if (size != 0) scale /= size;
 
 	// Multipliers add extra avoidance in special cases.
 	if (Cast<APawn>(Hit.GetActor())) scale *= PawnAvoidanceScale;
-	else scale *= EnvironmentAvoidanceScale;
-	if (size != 0) scale *= BoundingRadius / size * BoundsOverlapAvoidanceScale;
 
 	// Scale and sum the danger vector.
 	Danger.Normalize();

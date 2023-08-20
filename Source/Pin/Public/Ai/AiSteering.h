@@ -32,18 +32,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Navigation")
 		TEnumAsByte<ECollisionChannel> PawnChannel;
 
-	/** Ai will favor moving away from objects as their distance gets closer or less than this radius. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Navigation")
-		float BoundingRadius = 100.0f;
-
-	/** Higher values will cause the ai to more strongly favor moving away from danger close to or less than the bounding radius. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Navigation")
-		float BoundsOverlapAvoidanceScale = 1.0f;
-
-	/** Higher values will cause the ai to more strongly favor moving away from non-pawns. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Navigation")
-		float EnvironmentAvoidanceScale = 1.0f;
-
 	/** Higher values will cause the ai to more strongly favor moving away from pawns. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Navigation")
 		float PawnAvoidanceScale = 1.0f;
@@ -71,16 +59,14 @@ protected:
 	void CalcDangerVector(FVector& OutVector);
 
 
-		FVector WeighDanger(FHitResult& Hit, float Radius);
-
-
-		FVector WeighDanger(TArray<FHitResult> Hits, float Radius);
+	FVector WeighDanger(FHitResult& Hit, float Radius);
+	FVector WeighDanger(TArray<FHitResult> Hits, float Radius);
 
 	UFUNCTION()
-		void QuickSphereTrace(TArray<FHitResult>& OutHits, ECollisionChannel ObjectType, float Radius);
+	void QuickSphereTrace(TArray<FHitResult>& OutHits, ECollisionChannel ObjectType, float Radius);
 
 	UFUNCTION()
-		void CompassTrace(TArray<FHitResult>& OutHits, ECollisionChannel ObjectType, float Distance);
+	void CompassTrace(TArray<FHitResult>& OutHits, ECollisionChannel ObjectType, float Distance);
 
 	/**
 	* @return Array of directions the ai can potentially move in.
