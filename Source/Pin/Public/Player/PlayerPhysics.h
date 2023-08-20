@@ -10,7 +10,7 @@
 /**
  * 
  */
-UCLASS(Blueprintable)
+UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent), Blueprintable)
 class PIN_API UPlayerPhysics : public UNetworkedPhysics
 {
 	GENERATED_BODY()

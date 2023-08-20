@@ -26,7 +26,7 @@ public:
 /**
  *
  */
-UCLASS(Blueprintable)
+UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent), Blueprintable)
 class PIN_API UNetworkedPhysics : public UMovementComponent
 {
 	GENERATED_BODY()

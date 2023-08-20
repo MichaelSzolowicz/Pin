@@ -5,7 +5,8 @@
 
 UAiSteering::UAiSteering()
 {
-
+	EnvironmentChannel = ECollisionChannel::ECC_WorldStatic;
+	PawnChannel = ECollisionChannel::ECC_Pawn;
 }
 
 
@@ -16,15 +17,22 @@ void UAiSteering::BeginPlay()
 
 }
 
+
+/**
+* @return Vector representing desired velocity.
+*/
 FVector UAiSteering::GetInput()
 {
-	GetObstacles(Obstacles);
-	CalculateDangerWeights();
+	FVector DangerVector = FVector::Zero();
+
+	CalcDangerVector(DangerVector);
 
 	FVector Input = FVector::Zero();
-	for (int i = 0; i < DangerWeights.Num(); i++) {
-		Input += Compass[i] * DangerWeights[i] * -1;
+	for (int i = 0; i < Compass.Num(); i++) {
+		Input += Compass[i] * FVector::DotProduct(Compass[i], DangerVector) * -1;
 	}
+
+	Input.Z = 0.f;
 
 	/*TESTONLY*/
 	UKismetSystemLibrary::DrawDebugArrow(GetWorld(), GetOwner()->GetActorLocation(), GetOwner()->GetActorLocation() + Input, 5.0f, FLinearColor::Blue);
@@ -36,59 +44,93 @@ FVector UAiSteering::GetInput()
 	return Input * BaseSpeed;
 }
 
-void UAiSteering::GetObstacles(TArray<FVector>& OutObstacles)
+
+/**
+* Caculates a vector representing the least desirable direction for the ai to move in.
+* @param OutVector
+*/
+void UAiSteering::CalcDangerVector(FVector& OutVector)
 {
-	FVector Start = GetOwner()->GetActorLocation();
-	TArray<TEnumAsByte<EObjectTypeQuery>> TraceType;
-	TraceType.Add(UEngineTypes::ConvertToObjectType(ECollisionChannel::ECC_Pawn));
-	TraceType.Add(UEngineTypes::ConvertToObjectType(ECollisionChannel::ECC_WorldStatic));
-	TArray<AActor*> ActorsToIgnore;
-	ActorsToIgnore.Add(GetOwner());
 	TArray<FHitResult> OutHits;
+	FVector Geometry = FVector::Zero();
+	FVector Pawns = FVector::Zero();
 
-	UKismetSystemLibrary::SphereTraceMultiForObjects(GetWorld(), Start, Start + FVector(0.0f, 0.f, -.1f), SightRadius, TraceType, false, ActorsToIgnore, EDrawDebugTrace::ForOneFrame, OutHits, true);
+	CompassTrace(OutHits, EnvironmentChannel, EnvironmentDetectionRadius);
+	OutVector += WeighDanger(OutHits, EnvironmentDetectionRadius);
 
-	DangerVector = FVector::Zero();
+	//QuickSphereTrace(OutHits, EnvironmentChannel, EnvironmentDetectionRadius);
+	//OutVector += WeighDanger(OutHits, EnvironmentDetectionRadius);
 
-	for (auto Hit : OutHits) {
-		// Normalize the danger vector within our sight radius
-		FVector vector = Hit.ImpactPoint - GetOwner()->GetActorLocation();
-		float size = vector.Size();
-		float scale = (size + SightRadius) / (SightRadius);
-
-		// The closer we are to the danger, the stronger we want to avoid it.
-		scale = SightRadius / scale;
-
-		// Multipliers add extra avoidance in special cases.
-		if (Cast<APawn>(Hit.GetActor())) scale *= 2;
-		if (size <= AiBounds) scale *= 3;
-
-		// Scale and sum the danger vector.
-		vector.Normalize();
-		vector *= scale;
-		DangerVector += vector;
-	}
+	QuickSphereTrace(OutHits, PawnChannel, PawnDetectionRadius);
+	OutVector += WeighDanger(OutHits, PawnDetectionRadius);
 
 	/*TESTONLY*/
 	UE_LOG(LogTemp, Warning, TEXT("Hits: %d"), OutHits.Num());
 
 	for (int i = 0; i < OutHits.Num(); i++) {
-		UKismetSystemLibrary::DrawDebugPoint(GetWorld(), OutHits[i].ImpactPoint, 20.0f, FLinearColor::Red, 1.0f);
+		//UKismetSystemLibrary::DrawDebugPoint(GetWorld(), OutHits[i].ImpactPoint, 20.0f, FLinearColor::Red, 1.0f);
 		UE_LOG(LogTemp, Warning, TEXT("Hit: %s"), *OutHits[i].GetActor()->GetName());
 	}
 	/*ENDTEST*/
 
 }
 
-void UAiSteering::CalculateDangerWeights()
+FVector UAiSteering::WeighDanger(FHitResult& Hit, float Radius)
 {
-	DangerWeights.Empty();
-	for (int i = 0; i < Compass.Num(); i++) {
-		DangerWeights.Push(FVector::DotProduct(Compass[i], DangerVector));
+	// Normalize the delta vector using sight radius as the upper bound.
+	FVector Danger = Hit.ImpactPoint - GetOwner()->GetActorLocation();
+	float size = Danger.Size();
+	float scale = (size + Radius) / (Radius);
 
-		/*TESTONLY*/
-		UE_LOG(LogTemp, Warning, TEXT("Weight %d: %f"), i, DangerWeights[i]);
-		/*ENDTEST*/
+	// The closer we are to the danger, the stronger we want to avoid it.
+	scale = Radius / scale;
+
+	// Multipliers add extra avoidance in special cases.
+	if (Cast<APawn>(Hit.GetActor())) scale *= PawnAvoidanceScale;
+	else scale *= EnvironmentAvoidanceScale;
+	if (size != 0) scale *= BoundingRadius / size * BoundsOverlapAvoidanceScale;
+
+	// Scale and sum the danger vector.
+	Danger.Normalize();
+	return Danger * scale;
+}
+
+FVector UAiSteering::WeighDanger(TArray<FHitResult> Hits, float Radius)
+{
+	FVector Danger = FVector::Zero();
+	for (auto Hit : Hits) {
+		Danger += WeighDanger(Hit, Radius);
+	}
+	return Danger;
+}
+
+void UAiSteering::QuickSphereTrace(TArray<FHitResult>& OutHits, ECollisionChannel ObjectType, float Radius)
+{
+	TArray<FHitResult> HitBuffer;
+	FVector Start = GetOwner()->GetActorLocation();
+	TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
+	TArray<AActor*> ActorsToIgnore;
+
+	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ObjectType));
+	ActorsToIgnore.Add(GetOwner());
+
+	UKismetSystemLibrary::SphereTraceMultiForObjects(GetWorld(), Start, Start + FVector(0.0f, 0.f, -.1f), Radius, ObjectTypes, false, ActorsToIgnore, EDrawDebugTrace::ForOneFrame, OutHits, true);
+}
+
+void UAiSteering::CompassTrace(TArray<FHitResult>& OutHits, ECollisionChannel ObjectType, float Distance)
+{
+	TArray<FHitResult> HitBuffer;
+	FVector Start = GetOwner()->GetActorLocation();
+	TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
+	TArray<AActor*> ActorsToIgnore;
+
+	OutHits.Empty();
+	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ObjectType));
+	ActorsToIgnore.Add(GetOwner());
+
+	for (int i = 0; i < Compass.Num(); i++) {
+		UKismetSystemLibrary::LineTraceMultiForObjects(GetWorld(), Start, Start + Compass[i] * Distance, ObjectTypes, false, ActorsToIgnore, EDrawDebugTrace::ForOneFrame, HitBuffer, true);
+		OutHits.Append(HitBuffer);
 	}
 }
 
