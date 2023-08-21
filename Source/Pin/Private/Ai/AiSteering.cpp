@@ -58,9 +58,6 @@ void UAiSteering::CalcDangerVector(FVector& OutVector)
 	CompassTrace(OutHits, EnvironmentChannel, EnvironmentDetectionRadius);
 	OutVector += WeighDanger(OutHits, EnvironmentDetectionRadius);
 
-	//QuickSphereTrace(OutHits, EnvironmentChannel, EnvironmentDetectionRadius);
-	//OutVector += WeighDanger(OutHits, EnvironmentDetectionRadius);
-
 	QuickSphereTrace(OutHits, PawnChannel, PawnDetectionRadius);
 	OutVector += WeighDanger(OutHits, PawnDetectionRadius);
 
@@ -80,18 +77,17 @@ FVector UAiSteering::WeighDanger(FHitResult& Hit, float Radius)
 	// Normalize the delta vector using sight radius as the upper bound.
 	FVector Danger = Hit.ImpactPoint - GetOwner()->GetActorLocation();
 	float size = Danger.Size();
-	float scale = (size + Radius) / (Radius);
+	float Weight = size / Radius;
 
 	// The closer we are to the danger, the stronger we want to avoid it.
-	scale = Radius / scale;
-	if (size != 0) scale /= size;
+	Weight = 1.f - Weight;
 
 	// Multipliers add extra avoidance in special cases.
-	if (Cast<APawn>(Hit.GetActor())) scale *= PawnAvoidanceScale;
+	if (Cast<APawn>(Hit.GetActor())) Weight *= PawnAvoidanceScale;
 
 	// Scale and sum the danger vector.
 	Danger.Normalize();
-	return Danger * scale;
+	return Danger * Weight;
 }
 
 FVector UAiSteering::WeighDanger(TArray<FHitResult> Hits, float Radius)

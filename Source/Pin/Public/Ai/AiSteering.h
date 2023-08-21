@@ -58,7 +58,6 @@ protected:
 	UFUNCTION()
 	void CalcDangerVector(FVector& OutVector);
 
-
 	FVector WeighDanger(FHitResult& Hit, float Radius);
 	FVector WeighDanger(TArray<FHitResult> Hits, float Radius);
 
