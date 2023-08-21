@@ -23,16 +23,9 @@ void UAiSteering::BeginPlay()
 */
 FVector UAiSteering::GetInput()
 {
-	FVector DangerVector = FVector::Zero();
-
-	CalcDangerVector(DangerVector);
-
 	FVector Input = FVector::Zero();
-	for (int i = 0; i < Compass.Num(); i++) {
-		Input += Compass[i] * FVector::DotProduct(Compass[i], DangerVector) * -1;
-	}
-
-	Input.Z = 0.f;
+	CalcDangerVector(Input);	// Right now the ai only evades, but this is structured in a way to easily support chase behavior if I want it later on.
+	Input *= -1;
 
 	/*TESTONLY*/
 	UKismetSystemLibrary::DrawDebugArrow(GetWorld(), GetOwner()->GetActorLocation(), GetOwner()->GetActorLocation() + Input, 5.0f, FLinearColor::Blue);
@@ -40,6 +33,7 @@ FVector UAiSteering::GetInput()
 	/*ENDTEST*/
 
 	Input.Normalize();
+	Input.Z = 0.f;	// Later on the movement component will constrain movement parallel to the floor, and this will be unnecessary.
 
 	return Input * BaseSpeed;
 }
@@ -52,13 +46,11 @@ FVector UAiSteering::GetInput()
 void UAiSteering::CalcDangerVector(FVector& OutVector)
 {
 	TArray<FHitResult> OutHits;
-	FVector Geometry = FVector::Zero();
-	FVector Pawns = FVector::Zero();
 
 	CompassTrace(OutHits, EnvironmentChannel, EnvironmentDetectionRadius);
 	OutVector += WeighDanger(OutHits, EnvironmentDetectionRadius);
 
-	QuickSphereTrace(OutHits, PawnChannel, PawnDetectionRadius);
+	SphereTrace(OutHits, PawnChannel, PawnDetectionRadius);
 	OutVector += WeighDanger(OutHits, PawnDetectionRadius);
 
 	/*TESTONLY*/
@@ -72,36 +64,35 @@ void UAiSteering::CalcDangerVector(FVector& OutVector)
 
 }
 
-FVector UAiSteering::WeighDanger(FHitResult& Hit, float Radius)
-{
-	// Normalize the delta vector using sight radius as the upper bound.
-	FVector Danger = Hit.ImpactPoint - GetOwner()->GetActorLocation();
-	float size = Danger.Size();
-	float Weight = size / Radius;
-
-	// The closer we are to the danger, the stronger we want to avoid it.
-	Weight = 1.f - Weight;
-
-	// Multipliers add extra avoidance in special cases.
-	if (Cast<APawn>(Hit.GetActor())) Weight *= PawnAvoidanceScale;
-
-	// Scale and sum the danger vector.
-	Danger.Normalize();
-	return Danger * Weight;
-}
-
+/**
+* Calculate a danger vector for an array of hits.
+* @param Hits
+* @param Radius. Maximum used in normalizing the delta between a hit and us.
+* @return Vector representing least desriable direction and magnitude of the danger.
+*/
 FVector UAiSteering::WeighDanger(TArray<FHitResult> Hits, float Radius)
 {
 	FVector Danger = FVector::Zero();
 	for (auto Hit : Hits) {
-		Danger += WeighDanger(Hit, Radius);
+		// Normalize the delta vector using sight radius as the upper bound.
+		FVector Delta = Hit.ImpactPoint - GetOwner()->GetActorLocation();
+		float Weight = Delta.Size() / Radius;
+
+		// The closer we are to the danger, the stronger we want to avoid it.
+		Weight = 1.f - Weight;
+
+		// Multipliers add extra avoidance in special cases.
+		if (Cast<APawn>(Hit.GetActor())) Weight *= PawnAvoidanceScale;
+
+		// Scale and sum the danger vector.
+		Delta.Normalize();
+		Danger += Delta * Weight;
 	}
 	return Danger;
 }
 
-void UAiSteering::QuickSphereTrace(TArray<FHitResult>& OutHits, ECollisionChannel ObjectType, float Radius)
+void UAiSteering::SphereTrace(TArray<FHitResult>& OutHits, ECollisionChannel ObjectType, float Radius)
 {
-	TArray<FHitResult> HitBuffer;
 	FVector Start = GetOwner()->GetActorLocation();
 	TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
 	TArray<AActor*> ActorsToIgnore;
