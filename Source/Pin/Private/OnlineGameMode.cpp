@@ -36,7 +36,7 @@ void AOnlineGameMode::SpawnPlayer_Implementation(APlayerController* NewPlayer)
 	if (PlayerStarts.Num() > NumPlayers)
 	{
 		// Only spawning the default pin player pawn class for now.
-		APinPlayerPawn* NewPawn = GetWorld()->SpawnActor<APinPlayerPawn>(DefaultPlayerPawn, PlayerStarts[NumPlayers]->GetActorTransform());
+		APawn* NewPawn = GetWorld()->SpawnActor<APawn>(DefaultPlayerPawn, PlayerStarts[NumPlayers]->GetActorTransform());
 		if (NewPawn)
 		{
 			/*

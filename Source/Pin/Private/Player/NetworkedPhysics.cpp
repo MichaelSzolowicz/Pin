@@ -8,6 +8,7 @@ void UNetworkedPhysics::BeginPlay()
 	Super::BeginPlay();
 
 	ComponentVelocity = FVector::Zero();
+	PendingInput = FVector2D::Zero();
 }
 
 
@@ -31,6 +32,11 @@ void UNetworkedPhysics::UpdatePhysics(float DeltaTime)
 		return;
 	}
 
+	// Add input
+	float SendInputX = PendingInput.X;
+	float SendInputY = PendingInput.Y;
+	ApplyInput();
+
 	// Construct the move to be executed.
 	FMove Move = FMove();
 	Move.Force = AccumulatedForce;
@@ -39,12 +45,11 @@ void UNetworkedPhysics::UpdatePhysics(float DeltaTime)
 	PerformMove(Move);
 	Move.EndPosition = GetOwner()->GetActorLocation();
 	Move.EndVelocity = ComponentVelocity;
-	MovesPendingValidation.Add(Move);
+	MovesBuffer.Add(Move);
 
 	//Execute move on server
-	if (GetNetMode() == NM_Client)
-	{
-		ServerPerformMove(Move);
+	if (GetNetMode() == NM_Client) {
+		ServerPerformMove(SendInputX, SendInputY, Move.Time, Move.EndPosition);
 	}
 }
 
@@ -122,8 +127,16 @@ void UNetworkedPhysics::ResolveCollision(FHitResult Hit)
 * RPC to execute and validate a move on the server.
 * @param Move The move to be executed.
 */
-void UNetworkedPhysics::ServerPerformMove_Implementation(FMove Move)
+void UNetworkedPhysics::ServerPerformMove_Implementation(float InputX, float InputY, float Time, FVector EndPosition)
 {
+	SetInput(InputX, InputY);
+	ApplyInput();
+
+	FMove Move = FMove();
+	Move.Force = AccumulatedForce;
+	Move.Time = Time;
+	Move.EndPosition = EndPosition;
+
 	OnServerReceiveMove();
 
 	// At this point, we have just received the move should assume Move.Force contains only the force the player is trying to directly add.
@@ -141,11 +154,7 @@ void UNetworkedPhysics::ServerPerformMove_Implementation(FMove Move)
 */
 bool UNetworkedPhysics::ServerValidateMove(FMove &Move)
 {
-	if (Move.Force.Size() > MaxAccumulatedForce) {
-		Move.Force.Normalize();
-		Move.Force *= MaxAccumulatedForce;
-		return false;
-	}
+
 	return true;
 }
 
@@ -187,21 +196,21 @@ void UNetworkedPhysics::ClientCorrection_Implementation(FMove Move) {
 	UpdatedComponent->SetWorldLocation(Move.EndPosition);
 	ComponentVelocity = Move.EndVelocity;
 	
-	int Num = MovesPendingValidation.Num();
+	int Num = MovesBuffer.Num();
 	for (int i = 0; i < Num; i++) {
 		// Remove all moves prior to the corrected move.
-		if (MovesPendingValidation[0].Time <= Move.Time) {
-			MovesPendingValidation.RemoveAt(0); 
+		if (MovesBuffer[0].Time <= Move.Time) {
+			MovesBuffer.RemoveAt(0); 
 		}
 		else {
-			PrevTimestamp = MovesPendingValidation[0].Time;
+			PrevTimestamp = MovesBuffer[0].Time;
 			break;
 		}
 	}
 
-	for (int i = 0; i < MovesPendingValidation.Num(); i++) {
+	for (int i = 0; i < MovesBuffer.Num(); i++) {
 		// Execute the remaining moves in moves pending validation.
-		PerformMove(MovesPendingValidation[i]);
+		PerformMove(MovesBuffer[i]);
 	}
 	// Reset the prev timestamp.
 	PrevTimestamp = GetWorld()->TimeSeconds;
@@ -215,10 +224,10 @@ void UNetworkedPhysics::ClientCorrection_Implementation(FMove Move) {
 void UNetworkedPhysics::ClientApproveMove_Implementation(float Timestamp)
 {
 	// Remove moves that occured before the approved move.
-	int Num = MovesPendingValidation.Num();
+	int Num = MovesBuffer.Num();
 	for (int i = 0; i < Num; i++) {
-		if (MovesPendingValidation[0].Time <= Timestamp) {
-			MovesPendingValidation.RemoveAt(0);
+		if (MovesBuffer[0].Time <= Timestamp) {
+			MovesBuffer.RemoveAt(0);
 		}
 		else {
 			break;
@@ -226,27 +235,20 @@ void UNetworkedPhysics::ClientApproveMove_Implementation(float Timestamp)
 	}
 }
 
+void UNetworkedPhysics::SetInput(float X, float Y)
+{
+	PendingInput = FVector2D(X, Y);
+}
 
-/**
-* Add force to Accumulated Force.
-* @param Force The force to add.
-*/
 void UNetworkedPhysics::AddForce(FVector Force)
 {
 	AccumulatedForce += Force;
 }
 
-void UNetworkedPhysics::AddInput(FVector2D Input, float Strength)
+void UNetworkedPhysics::ApplyInput()
 {
-	FVector AppliedForce = FVector(Input, 0.f);
-	AppliedForce.Normalize();
-	AccumulatedForce = AppliedForce * Strength;
-}
-
-
-float UNetworkedPhysics::AngleBetweenVectors(FVector v1, FVector v2)
-{
-	float Dot = FVector::DotProduct(v1, v2);
-	float Mag = v1.Size() * v2.Size();
-	return PI - (Dot / Mag);
+	FVector AppliedForce = FVector(PendingInput.X, PendingInput.Y, 0.f);
+	if (AppliedForce.Size() > 1.f) AppliedForce.Normalize();
+	AddForce(AppliedForce * InputStrength);
+	PendingInput = FVector2D::Zero();
 }

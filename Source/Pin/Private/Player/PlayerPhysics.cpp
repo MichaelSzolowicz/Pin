@@ -125,5 +125,5 @@ void UPlayerPhysics::ServerPerformMoveGrapple_Implementation(FMove Move, bool bG
 
 	ReticleOffset = NewReticleOffset;
 
-	ServerPerformMove(Move);
+	//ServerPerformMove(Move);
 }

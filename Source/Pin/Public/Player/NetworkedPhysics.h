@@ -31,9 +31,14 @@ class PIN_API UNetworkedPhysics : public UMovementComponent
 {
 	GENERATED_BODY()
 
+protected:
+	TArray<FMove> MovesBuffer;
+
+	FVector2D PendingInput;
+
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics")
-		float MaxAccumulatedForce = 240000.0f;
+		float InputStrength = 60000.f;
 
 	// Forces that should be calculated server side. These forces are usually calculated at the start of PerformMove(), after all other relavant forces have been resolved.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Physics")
@@ -74,6 +79,26 @@ public:
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 	/**
+	* Submit a 2d input vector to be processed next tick. 
+	* @param X
+	* @param Y
+	*/
+	UFUNCTION(BlueprintCallable)
+	void SetInput(float X, float Y);
+
+	UFUNCTION(BlueprintCallable)
+	void AddForce(FVector Force);
+
+	/*Getter functions.*/
+
+	UFUNCTION(BlueprintCallable)
+	float InverseMass() { return 1 / Mass; }
+
+	UFUNCTION(BlueprintCallable)
+	float GetSpeed() { return Velocity.Size(); }
+
+protected:
+	/**
 	* Apply Accumulated Force as movement. Saves the resulting move and send it to the servers.
 	* @param DeltaTime
 	*/
@@ -90,7 +115,7 @@ public:
 	* @param Move The move to be performed.
 	*/
 	UFUNCTION()
-	virtual void PerformMove(FMove Move);
+		virtual void PerformMove(FMove Move);
 
 	/**
 	* Calculates the normal impulse.
@@ -103,20 +128,19 @@ public:
 	* @param Move The move to be executed.
 	*/
 	UFUNCTION(Server, Unreliable)
-	void ServerPerformMove(FMove Move);
-	void ServerPerformMove_Implementation(FMove Move);
-
+		void ServerPerformMove(float InputX, float InputY, float Time, FVector EndPosition);
+	void ServerPerformMove_Implementation(float InputX, float InputY, float Time, FVector EndPosition);
 	/**
 	* Used to let blueprints know the authorative physics component has received an update.
 	*/
 	UFUNCTION(BlueprintImplementableEvent)
-	void OnServerReceiveMove();
+		void OnServerReceiveMove();
 
 	/**
 	* Used to check move inputs before executing the move.
 	* @param Move The move to be checked.
 	*/
-	bool ServerValidateMove(FMove &Move);
+	bool ServerValidateMove(FMove& Move);
 
 	/**
 	* Checks a move executed on the server against the result submitted by the client.
@@ -124,14 +148,14 @@ public:
 	* @param Move The move to check.
 	*/
 	UFUNCTION()
-	virtual void CheckCompletedMove(FMove Move);
+		virtual void CheckCompletedMove(FMove Move);
 
 	/**
 	* Client RPC for receiving correction.
 	* @param Move The corrected move.
 	*/
 	UFUNCTION(Client, Reliable)
-	void ClientCorrection(FMove Move);
+		void ClientCorrection(FMove Move);
 	virtual void ClientCorrection_Implementation(FMove Move);
 
 	/**
@@ -139,33 +163,9 @@ public:
 	* @param Timestamp The timestamp of the approved move.
 	*/
 	UFUNCTION(Client, Reliable)
-	void ClientApproveMove(float Timestamp);
+		void ClientApproveMove(float Timestamp);
 	void ClientApproveMove_Implementation(float Timestamp);
 
-	/**
-	* Add force to Accumulated Force.
-	* @param Force The force to add.
-	*/
-	UFUNCTION(BlueprintCallable)
-	void AddForce(FVector Force);
-
-	UFUNCTION(BlueprintCallable)
-		void AddInput(FVector2D Input, float Strength);
-
-	UFUNCTION(BlueprintCallable)
-	float InverseMass() { return 1 / Mass; }
-
-	/*Utility functions.*/
-	/**
-	* Returns the angle between two vectors.
-	* @param v1
-	* @param v2
-	* @return angle
-	*/
-	float AngleBetweenVectors(FVector v1, FVector v2);
-
-	/*Getter functions.*/
-	UFUNCTION(BlueprintCallable)
-		float GetSpeed() { return Velocity.Size(); }
+	void ApplyInput();
 
 };
