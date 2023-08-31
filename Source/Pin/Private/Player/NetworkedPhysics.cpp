@@ -22,7 +22,6 @@ void UNetworkedPhysics::TickComponent(float DeltaTime, enum ELevelTick TickType,
 
 /**
 * Apply Accumulated Force as movement. Saves the resulting move and send it to the servers.
-* Also applies natural forces. Note this function should later be decomposed into multiple functions.
 * @param DeltaTime
 */
 void UNetworkedPhysics::UpdatePhysics(float DeltaTime)
@@ -31,6 +30,9 @@ void UNetworkedPhysics::UpdatePhysics(float DeltaTime)
 	if (!(Pawn && Pawn->Controller && Pawn->Controller->IsLocalPlayerController())) {
 		return;
 	}
+
+	// Forces
+	CalcGravity();
 
 	// Add input
 	float SendInputX = PendingInput.X;
@@ -55,11 +57,11 @@ void UNetworkedPhysics::UpdatePhysics(float DeltaTime)
 
 
 /*
-* Add gravitational force to Natural Force.
+* Add gravitational force to Accumulated Force.
 */
 void UNetworkedPhysics::CalcGravity()
 {
-	NaturalForce += FVector(0, 0, GetWorld()->GetGravityZ()) * Mass;
+	AccumulatedForce += FVector(0, 0, GetWorld()->GetGravityZ()) * Mass;
 }
 
 
@@ -67,11 +69,8 @@ void UNetworkedPhysics::CalcGravity()
 * Physically moves the updated component. Applies normal impulse.
 * @param Move The move to be performed.
 */
-void UNetworkedPhysics::PerformMove(FMove Move)
+void UNetworkedPhysics::PerformMove(const FMove& Move)
 {
-	// Natural forces
-	CalcGravity();
-
 	// Delta time
 	float dt = Move.Time - PrevTimestamp;
 	PrevTimestamp = Move.Time;
@@ -92,9 +91,8 @@ void UNetworkedPhysics::PerformMove(FMove Move)
 		}
 	}
 
-	ComponentVelocity += ((Move.Force + NaturalForce) / Mass) * dt;
+	ComponentVelocity += ((Move.Force) / Mass) * dt;
 	AccumulatedForce = FVector::Zero();
-	NaturalForce = FVector::Zero();
 }
 
 
@@ -102,7 +100,7 @@ void UNetworkedPhysics::PerformMove(FMove Move)
 * Calculates the normal impulse.
 * @param Hit The hit struct we will find the normal impulse for.
 */
-void UNetworkedPhysics::ResolveCollision(FHitResult Hit)
+void UNetworkedPhysics::ResolveCollision(const FHitResult& Hit)
 {
 	// Assuming other actor is static. Later I will need to find a different way to reliably get ComponentVelocity from all types of actor.
 	FVector rv = -ComponentVelocity;
@@ -125,11 +123,16 @@ void UNetworkedPhysics::ResolveCollision(FHitResult Hit)
 
 /**
 * RPC to execute and validate a move on the server.
-* @param Move The move to be executed.
+* @param InputX
+* @param InputY
+* @param Time
+* @param EndPosition
 */
 void UNetworkedPhysics::ServerPerformMove_Implementation(float InputX, float InputY, float Time, FVector EndPosition)
 {
-	SetInput(InputX, InputY);
+	CalcGravity();
+
+	SetInput(FVector2D(InputX, InputY));
 	ApplyInput();
 
 	FMove Move = FMove();
@@ -139,8 +142,6 @@ void UNetworkedPhysics::ServerPerformMove_Implementation(float InputX, float Inp
 
 	OnServerReceiveMove();
 
-	// At this point, we have just received the move should assume Move.Force contains only the force the player is trying to directly add.
-	// Natural forces that should be calculated server side, like grapple and gravity, are calculated in PerformMove().
 	ServerValidateMove(Move);
 
 	PerformMove(Move);
@@ -152,9 +153,8 @@ void UNetworkedPhysics::ServerPerformMove_Implementation(float InputX, float Inp
 * Used to check move inputs before executing the move.
 * @param Move The move to be checked.
 */
-bool UNetworkedPhysics::ServerValidateMove(FMove &Move)
+bool UNetworkedPhysics::ServerValidateMove(const FMove& Move)
 {
-
 	return true;
 }
 
@@ -164,7 +164,7 @@ bool UNetworkedPhysics::ServerValidateMove(FMove &Move)
 * Submits a correction if there is a large enough discrepency, approves move otherwise.
 * @param Move The move to check.
 */
-void UNetworkedPhysics::CheckCompletedMove(FMove Move)
+void UNetworkedPhysics::CheckCompletedMove(const FMove& Move)
 {
 	// The server's most recent approved position, velocity, etc. is assigned to the components they belong to.
 	// The result of the move sent by the client is stored in struct members prefixed by "End."
@@ -175,31 +175,30 @@ void UNetworkedPhysics::CheckCompletedMove(FMove Move)
 	}
 
 	if (correction) {
-		Move.EndPosition = UpdatedComponent->GetComponentLocation();
-		Move.EndVelocity = ComponentVelocity;
-		LastValidatedMove = Move;
-
-		ClientCorrection(Move);
+		ClientCorrection(UpdatedComponent->GetComponentLocation(), ComponentVelocity, Move.Time);
 	}
 	else {
-		LastValidatedMove = Move;
 		ClientApproveMove(Move.Time);
 	}
+
+	LastValidatedMove = Move;
 }
 
 
 /**
 * Client RPC for receiving correction.
-* @param Move The corrected move.
+* @param EndPosition
+* @param EndVelocity
+* @param Time
 */
-void UNetworkedPhysics::ClientCorrection_Implementation(FMove Move) {
-	UpdatedComponent->SetWorldLocation(Move.EndPosition);
-	ComponentVelocity = Move.EndVelocity;
+void UNetworkedPhysics::ClientCorrection_Implementation(FVector EndPosition, FVector EndVelocity, float Time) {
+	UpdatedComponent->SetWorldLocation(EndPosition);
+	ComponentVelocity = EndVelocity;
 	
 	int Num = MovesBuffer.Num();
 	for (int i = 0; i < Num; i++) {
 		// Remove all moves prior to the corrected move.
-		if (MovesBuffer[0].Time <= Move.Time) {
+		if (MovesBuffer[0].Time <= Time) {
 			MovesBuffer.RemoveAt(0); 
 		}
 		else {
@@ -235,9 +234,9 @@ void UNetworkedPhysics::ClientApproveMove_Implementation(float Timestamp)
 	}
 }
 
-void UNetworkedPhysics::SetInput(float X, float Y)
+void UNetworkedPhysics::SetInput(FVector2D Input)
 {
-	PendingInput = FVector2D(X, Y);
+	PendingInput = Input;
 }
 
 void UNetworkedPhysics::AddForce(FVector Force)

@@ -62,7 +62,7 @@ void UPlayerPhysics::UpdatePhysics(float DeltaTime)
 	// I add the grapple force to the saved move so that it gets recalculated in the event of a correction.
 	Move.Force += PrevGrappleForce;
 	
-	MovesPendingValidation.Add(Move);
+	MovesBuffer.Add(Move);
 }
 
 
@@ -72,7 +72,7 @@ void UPlayerPhysics::UpdatePhysics(float DeltaTime)
 * If running on the server, server will calculate its own grapple force. 
 * @param Move The move to be executed.
 */
-void UPlayerPhysics::PerformMove(FMove Move)
+void UPlayerPhysics::PerformMove(const FMove& Move)
 {
 	if (GetNetMode() == NM_Client) {
 		// If we are on the client we only want to apply grapple force if the move IS NOT a correction.

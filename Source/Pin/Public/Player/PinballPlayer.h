@@ -11,23 +11,33 @@ class PIN_API APinballPlayer : public APawn
 	GENERATED_BODY()
 
 protected:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Input)
+	// Input
+	UPROPERTY(EditDefaultsOnly, Category = Input)
 		class UInputMappingContext* InputMapping;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Input)
+	UPROPERTY(EditDefaultsOnly, Category = Input)
 		class UDefaultPlayerInputConfig* DefaultInputActions;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Physics)
+	// Physics
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Physics)
 		class UNetworkedPhysics* NetworkPhysics;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = CapsuleComponent)
+	// Scene components
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = CapsuleComponent)
 		class UCapsuleComponent* CapsuleComponent;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = RotationRoot)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = RotationRoot)
 		class USceneComponent* RotationRoot;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Weapon)
-		class USceneComponent* SpawnAt;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Weapon)
+		class UReticle* Reticle;
+
+	// Grapple
+	UPROPERTY(EditDefaultsOnly, Category = Grapple)
+		TSubclassOf<AActor> GrappleProjectileClass;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Grapple)
+		class UStickyProjectile* GrappleProjectileComponent;
 
 public:
 	APinballPlayer();
@@ -36,6 +46,8 @@ public:
 
 protected:
 	UFUNCTION()
-		void Push(const FInputActionValue& Value);
+	void Push(const FInputActionValue& Value);
+
+	void FireGrapple();
 
 };

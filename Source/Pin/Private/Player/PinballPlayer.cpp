@@ -1,6 +1,5 @@
 #include "Player/PinballPlayer.h"
 
-
 #include "EnhancedInputSubsystems.h"
 #include "InputMappingContext.h"
 #include "EnhancedInput/Public/EnhancedInputComponent.h"
@@ -8,6 +7,7 @@
 
 #include "Components/CapsuleComponent.h"
 #include "Player/NetworkedPhysics.h"
+#include "Player/Reticle.h"
 
 
 APinballPlayer::APinballPlayer()
@@ -22,8 +22,8 @@ APinballPlayer::APinballPlayer()
 	RotationRoot = CreateDefaultSubobject<USceneComponent>(TEXT("RotationRoot"));
 	RotationRoot->SetupAttachment(RootComponent);
 
-	SpawnAt = CreateDefaultSubobject<USceneComponent>(TEXT("SpawnAt"));
-	SpawnAt->SetupAttachment(RootComponent);
+	Reticle = CreateDefaultSubobject<UReticle>(TEXT("SpawnAt"));
+	Reticle->SetupAttachment(RootComponent);
 
 }
 
@@ -44,6 +44,8 @@ void APinballPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 	UEnhancedInputComponent* EnhancedInputComp = Cast<UEnhancedInputComponent>(PlayerInputComponent);
 	EnhancedInputComp->BindAction(DefaultInputActions->InputPush, ETriggerEvent::Triggered, this, &APinballPlayer::Push);
 
+	EnhancedInputComp->BindAction(DefaultInputActions->FireGrapple, ETriggerEvent::Started, this, &APinballPlayer::FireGrapple);
+
 }
 
 void APinballPlayer::Push(const FInputActionValue& Value)
@@ -51,6 +53,11 @@ void APinballPlayer::Push(const FInputActionValue& Value)
 	FVector2D Input = Value.Get<FVector2D>();
 	UE_LOG(LogTemp, Warning, TEXT("Input push: %s"), *Input.ToString());
 
-	NetworkPhysics->SetInput(Input.X, Input.Y);
+	NetworkPhysics->SetInput(Input);
+}
+
+void APinballPlayer::FireGrapple()
+{
+	UE_LOG(LogTemp, Warning, TEXT("Fire Grapple"));
 }
 

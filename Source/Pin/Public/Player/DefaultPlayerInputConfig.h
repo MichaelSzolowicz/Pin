@@ -16,6 +16,9 @@ class PIN_API UDefaultPlayerInputConfig : public UDataAsset
 
 public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-		class UInputAction* InputPush;
+	class UInputAction* InputPush;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	class UInputAction* FireGrapple;
 	
 };

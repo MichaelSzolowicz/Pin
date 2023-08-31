@@ -44,7 +44,7 @@ protected:
 	* If running on the server, server will calculate its own grapple force.
 	* @param Move The move to be executed.
 	*/
-	void PerformMove(FMove Move) override;
+	void PerformMove(const FMove& Move) override;
 
 	/**
 	* Perform and check a move on the server. Spawns or updates a projectile if bGrapple is true.
