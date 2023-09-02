@@ -28,7 +28,8 @@ void UReticle::TickComponent(float DeltaTime, ELevelTick TickType, FActorCompone
 */
 FVector UReticle::AddInput(FVector2D Input)
 {
-	SetRelativeLocation(FVector(Input.X, Input.Y, 0.f));
+	AddWorldOffset(FVector(Input, 0.f));
+	SetWorldRotation(GetRelativeLocation().Rotation());
 
 	ClampPos();
 

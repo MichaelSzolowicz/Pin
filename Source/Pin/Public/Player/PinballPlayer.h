@@ -50,4 +50,6 @@ protected:
 
 	void FireGrapple();
 
+	void SwivelReticle(const FInputActionValue& Value);
+
 };

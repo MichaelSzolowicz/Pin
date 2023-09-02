@@ -8,6 +8,7 @@
 #include "Components/CapsuleComponent.h"
 #include "Player/NetworkedPhysics.h"
 #include "Player/Reticle.h"
+#include "Projectiles/StickyProjectile.h"
 
 
 APinballPlayer::APinballPlayer()
@@ -17,7 +18,7 @@ APinballPlayer::APinballPlayer()
 	NetworkPhysics = CreateDefaultSubobject<UNetworkedPhysics>(TEXT("NetworkPhysics"));
 
 	CapsuleComponent = CreateDefaultSubobject<UCapsuleComponent>(TEXT("CapsuleComponent"));
-	CapsuleComponent->SetupAttachment(RootComponent);
+	SetRootComponent(CapsuleComponent);
 
 	RotationRoot = CreateDefaultSubobject<USceneComponent>(TEXT("RotationRoot"));
 	RotationRoot->SetupAttachment(RootComponent);
@@ -46,6 +47,8 @@ void APinballPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 
 	EnhancedInputComp->BindAction(DefaultInputActions->FireGrapple, ETriggerEvent::Started, this, &APinballPlayer::FireGrapple);
 
+	EnhancedInputComp->BindAction(DefaultInputActions->SwivelReticle, ETriggerEvent::Triggered, this, &APinballPlayer::SwivelReticle);
+
 }
 
 void APinballPlayer::Push(const FInputActionValue& Value)
@@ -59,5 +62,25 @@ void APinballPlayer::Push(const FInputActionValue& Value)
 void APinballPlayer::FireGrapple()
 {
 	UE_LOG(LogTemp, Warning, TEXT("Fire Grapple"));
+
+	AActor* NewProj = GetWorld()->SpawnActor<AActor>(GrappleProjectileClass, Reticle->GetComponentTransform());
+	GrappleProjectileComponent = NewProj->GetComponentByClass<UStickyProjectile>();
+
+	if (GrappleProjectileComponent)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Valid grapple projectile"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Invalid Grapple projectile"));
+	}
+}
+
+void APinballPlayer::SwivelReticle(const FInputActionValue& Value)
+{
+	FVector2D Offset = Value.Get<FVector2D>();
+	UE_LOG(LogTemp, Warning, TEXT("Swivel offset: %s"), *Offset.ToString());
+
+	Reticle->AddInput(Offset);
 }
 
