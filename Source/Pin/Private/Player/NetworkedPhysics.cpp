@@ -9,6 +9,8 @@ void UNetworkedPhysics::BeginPlay()
 
 	ComponentVelocity = FVector::Zero();
 	PendingInput = FVector2D::Zero();
+
+	//UpdatedRotationComponent = UpdatedComponent;
 }
 
 
@@ -16,9 +18,10 @@ void UNetworkedPhysics::TickComponent(float DeltaTime, enum ELevelTick TickType,
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
+	UE_LOG(LogTemp, Warning, TEXT("Apply rotation"));
+
 	UpdatePhysics(DeltaTime);
 }
-
 
 /**
 * Apply Accumulated Force as movement. Saves the resulting move and send it to the servers.
@@ -35,23 +38,28 @@ void UNetworkedPhysics::UpdatePhysics(float DeltaTime)
 	CalcGravity();
 
 	// Add input
-	float SendInputX = PendingInput.X;
-	float SendInputY = PendingInput.Y;
+	FVector2D InputCopy = PendingInput;
 	ApplyInput();
 
 	// Construct the move to be executed.
 	FMove Move = FMove();
-	Move.Force = AccumulatedForce;
+	Move.Force = ConsumeAccumulatedForce();
 	Move.Time = GetWorld()->TimeSeconds;
 
 	PerformMove(Move);
-	Move.EndPosition = GetOwner()->GetActorLocation();
+
+	Move.EndPosition = UpdatedComponent->GetComponentLocation();
 	Move.EndVelocity = ComponentVelocity;
 	MovesBuffer.Add(Move);
 
 	//Execute move on server
 	if (GetNetMode() == NM_Client) {
-		ServerPerformMove(SendInputX, SendInputY, Move.Time, Move.EndPosition);
+		if (bShouldUpdateRotation) {
+			ServerPerformMoveWithRotation(InputCopy, Move.Time, Move.EndPosition, PendingLookAt);
+		}
+		else {
+			ServerPerformMove(InputCopy, Move.Time, Move.EndPosition);
+		}
 	}
 }
 
@@ -91,8 +99,11 @@ void UNetworkedPhysics::PerformMove(const FMove& Move)
 		}
 	}
 
-	ComponentVelocity += ((Move.Force) / Mass) * dt;
-	AccumulatedForce = FVector::Zero();
+	ComponentVelocity += (Move.Force / Mass) * dt;
+
+	if (bShouldUpdateRotation) {
+		ApplyLookAtRotation();
+	}
 }
 
 
@@ -128,24 +139,31 @@ void UNetworkedPhysics::ResolveCollision(const FHitResult& Hit)
 * @param Time
 * @param EndPosition
 */
-void UNetworkedPhysics::ServerPerformMove_Implementation(float InputX, float InputY, float Time, FVector EndPosition)
+void UNetworkedPhysics::ServerPerformMove_Implementation(FVector2D Input, float Time, FVector EndPosition)
 {
 	CalcGravity();
 
-	SetInput(FVector2D(InputX, InputY));
+	SetInput(Input);
 	ApplyInput();
 
 	FMove Move = FMove();
-	Move.Force = AccumulatedForce;
+	Move.Force = ConsumeAccumulatedForce();
 	Move.Time = Time;
 	Move.EndPosition = EndPosition;
+	Move.LookAt = PendingLookAt;
 
-	OnServerReceiveMove();
+	OnServerReceiveMove.Execute();
 
 	ServerValidateMove(Move);
-
 	PerformMove(Move);
 	CheckCompletedMove(Move);
+}
+
+void UNetworkedPhysics::ServerPerformMoveWithRotation_Implementation(FVector2D Input, float Time, FVector EndPosition, FVector LookAt)
+{
+	SetLookAtRotation(LookAt);
+
+	ServerPerformMove(Input, Time, EndPosition);
 }
 
 
@@ -182,6 +200,7 @@ void UNetworkedPhysics::CheckCompletedMove(const FMove& Move)
 	}
 
 	LastValidatedMove = Move;
+	AddMoveToServerBuffer(Move);
 }
 
 
@@ -234,9 +253,37 @@ void UNetworkedPhysics::ClientApproveMove_Implementation(float Timestamp)
 	}
 }
 
+void UNetworkedPhysics::EstimateMoveFromBuffer(FMove& Move)
+{
+	int i = 0;
+	float Time = Move.Time;
+	for (; i < MovesBuffer.Num(); i++) {
+		if (Time < MovesBuffer[i].Time) {
+			break;
+		}
+		Move = MovesBuffer[i];
+	}
+}
+
+void UNetworkedPhysics::SetUpdatedRotationComponent(USceneComponent* Component)
+{
+	UpdatedRotationComponent = Component;
+	if (GetOwner()->GetLocalRole() == ENetRole::ROLE_Authority) {
+		if (Component) {
+			UE_LOG(LogTemp, Warning, TEXT("Set rotation root %s"), *Component->GetName());
+		}
+	}
+}
+
+
 void UNetworkedPhysics::SetInput(FVector2D Input)
 {
 	PendingInput = Input;
+}
+
+void UNetworkedPhysics::SetLookAtRotation(FVector LookAt)
+{
+	PendingLookAt = LookAt;
 }
 
 void UNetworkedPhysics::AddForce(FVector Force)
@@ -250,4 +297,29 @@ void UNetworkedPhysics::ApplyInput()
 	if (AppliedForce.Size() > 1.f) AppliedForce.Normalize();
 	AddForce(AppliedForce * InputStrength);
 	PendingInput = FVector2D::Zero();
+}
+
+void UNetworkedPhysics::ApplyLookAtRotation()
+{
+	UE_LOG(LogTemp, Warning, TEXT("Apply rotation"));
+	if (UpdatedRotationComponent) {
+		UpdatedRotationComponent->SetWorldRotation(PendingLookAt.Rotation());
+	}
+}
+
+FVector UNetworkedPhysics::ConsumeAccumulatedForce()
+{
+	FVector Temp = AccumulatedForce;
+	AccumulatedForce = FVector::Zero();
+	return Temp;
+}
+
+void UNetworkedPhysics::AddMoveToServerBuffer(const FMove& Move)
+{
+	if (GetNetMode() < NM_ListenServer) return;
+
+	MovesBuffer.Add(Move);
+	if (MovesBuffer[0].Time - MovesBuffer.Last().Time > ServerBufferMaxDeltaTime) {
+		MovesBuffer.RemoveAt(0);
+	}
 }

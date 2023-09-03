@@ -34,6 +34,9 @@ protected:
 
 	// Grapple
 	UPROPERTY(EditDefaultsOnly, Category = Grapple)
+		float GrappleStrength;
+
+	UPROPERTY(EditDefaultsOnly, Category = Grapple)
 		TSubclassOf<AActor> GrappleProjectileClass;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Grapple)
@@ -42,13 +45,24 @@ protected:
 public:
 	APinballPlayer();
 
+	virtual void BeginPlay() override;
+
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+
+	virtual void Tick(float DeltaTime) override;
 
 protected:
 	UFUNCTION()
 	void Push(const FInputActionValue& Value);
 
+	UFUNCTION() 
+	void AddGrappleForce();
+
 	void FireGrapple();
+
+	UFUNCTION(Server, Reliable)
+	void ServerFireGrapple(float Time);
+	void ServerFireGrapple_Implementation(float Time);
 
 	void SwivelReticle(const FInputActionValue& Value);
 

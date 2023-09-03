@@ -13,7 +13,7 @@
 
 APinballPlayer::APinballPlayer()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true;
 
 	NetworkPhysics = CreateDefaultSubobject<UNetworkedPhysics>(TEXT("NetworkPhysics"));
 
@@ -25,7 +25,15 @@ APinballPlayer::APinballPlayer()
 
 	Reticle = CreateDefaultSubobject<UReticle>(TEXT("SpawnAt"));
 	Reticle->SetupAttachment(RootComponent);
+}
 
+void APinballPlayer::BeginPlay()
+{
+	Super::BeginPlay();
+
+	NetworkPhysics->OnServerReceiveMove.BindUObject(this, &APinballPlayer::AddGrappleForce);
+
+	NetworkPhysics->SetUpdatedRotationComponent(RotationRoot);
 }
 
 
@@ -51,12 +59,32 @@ void APinballPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 
 }
 
+void APinballPlayer::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+	if (GetNetMode() == ENetMode::NM_Client) {
+		AddGrappleForce();
+	}
+}
+
 void APinballPlayer::Push(const FInputActionValue& Value)
 {
 	FVector2D Input = Value.Get<FVector2D>();
 	UE_LOG(LogTemp, Warning, TEXT("Input push: %s"), *Input.ToString());
 
 	NetworkPhysics->SetInput(Input);
+}
+
+void APinballPlayer::AddGrappleForce()
+{
+	if (GrappleProjectileComponent) {
+		if (GrappleProjectileComponent->AttachedTo) {
+			FVector Direction = GrappleProjectileComponent->GetOwner()->GetActorLocation() - GetActorLocation();
+			Direction.Normalize();
+			NetworkPhysics->AddForce(Direction * GrappleStrength);
+		}
+	}
 }
 
 void APinballPlayer::FireGrapple()
@@ -66,21 +94,35 @@ void APinballPlayer::FireGrapple()
 	AActor* NewProj = GetWorld()->SpawnActor<AActor>(GrappleProjectileClass, Reticle->GetComponentTransform());
 	GrappleProjectileComponent = NewProj->GetComponentByClass<UStickyProjectile>();
 
-	if (GrappleProjectileComponent)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Valid grapple projectile"));
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Invalid Grapple projectile"));
+	if (GetNetMode() == ENetMode::NM_Client) {
+		ServerFireGrapple(GetWorld()->TimeSeconds);
 	}
 }
+
+
+void APinballPlayer::ServerFireGrapple_Implementation(float Time)
+{
+	UE_LOG(LogTemp, Warning, TEXT("ServerFireGrapple"));
+
+	FMove SimulatedMove = FMove();
+	SimulatedMove.Time = Time;
+	NetworkPhysics->EstimateMoveFromBuffer(SimulatedMove);
+
+	SimulatedMove.EndPosition += SimulatedMove.LookAt;
+
+	AActor* NewProj = GetWorld()->SpawnActor<AActor>(GrappleProjectileClass, SimulatedMove.EndPosition, SimulatedMove.LookAt.Rotation());
+	GrappleProjectileComponent = NewProj->GetComponentByClass<UStickyProjectile>();
+}
+
 
 void APinballPlayer::SwivelReticle(const FInputActionValue& Value)
 {
 	FVector2D Offset = Value.Get<FVector2D>();
 	UE_LOG(LogTemp, Warning, TEXT("Swivel offset: %s"), *Offset.ToString());
 
-	Reticle->AddInput(Offset);
+	if (Offset.Size() != 0.f) {
+		Reticle->AddInput(Offset);
+		NetworkPhysics->SetLookAtRotation(Reticle->GetRelativeLocation());
+	}
 }
 

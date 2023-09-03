@@ -20,7 +20,12 @@ public:
 		FVector EndVelocity;
 	UPROPERTY()
 		FVector EndPosition;
+	UPROPERTY()
+		FVector LookAt;
 };
+
+
+DECLARE_DELEGATE(FOnServerReceiveMove);
 
 
 /**
@@ -37,6 +42,15 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 		float InputStrength = 60000.f;
+
+	//Rotation
+	FVector PendingLookAt;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Rotation")
+		bool bShouldUpdateRotation = false;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Rotation")
+		USceneComponent* UpdatedRotationComponent;
 
 	// Physics
 	UPROPERTY(EditDefaultsOnly, Category = "Physics")
@@ -64,6 +78,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Networking")
 		float MinCorrectionDistance;
 
+	UPROPERTY(EditDefaultsOnly, Category = "Networking")
+		float ServerBufferMaxDeltaTime = 1.f;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Networking")
 		FMove LastValidatedMove;
 
@@ -71,9 +88,13 @@ protected:
 		float PrevTimestamp = 0.0f;
 
 public:
+	FOnServerReceiveMove OnServerReceiveMove;
+
 	virtual void BeginPlay() override;
 
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+
+	void SetUpdatedRotationComponent(USceneComponent* Component);
 
 	/**
 	* Submit a 2d input vector to be processed next tick. 
@@ -84,9 +105,12 @@ public:
 	void SetInput(FVector2D Input);
 
 	UFUNCTION(BlueprintCallable)
+	void SetLookAtRotation(FVector LookAt);
+
+	UFUNCTION(BlueprintCallable)
 	void AddForce(FVector Force);
 
-	/*Getter functions.*/
+	// Getter functions.
 
 	UFUNCTION(BlueprintCallable)
 	float InverseMass() { return 1 / Mass; }
@@ -94,12 +118,14 @@ public:
 	UFUNCTION(BlueprintCallable)
 	float GetSpeed() { return Velocity.Size(); }
 
+	void EstimateMoveFromBuffer(FMove& Move);
+
 protected:
 	/**
 	* Apply Accumulated Force as movement. Saves the resulting move and send it to the servers.
 	* @param DeltaTime
 	*/
-	virtual void UpdatePhysics(float DeltaTime);
+	virtual void UpdatePhysics(float DeltaTime);	
 
 	/*
 	* Add gravitational force to Accumulated Force.
@@ -128,14 +154,12 @@ protected:
 	* @param EndPosition
 	*/
 	UFUNCTION(Server, Unreliable)
-	void ServerPerformMove(float InputX, float InputY, float Time, FVector EndPosition);
-	void ServerPerformMove_Implementation(float InputX, float InputY, float Time, FVector EndPosition);
+	void ServerPerformMove(FVector2D Input, float Time, FVector EndPosition);
+	void ServerPerformMove_Implementation(FVector2D Input, float Time, FVector EndPosition);
 
-	/**
-	* Used to let blueprints know the authorative physics component has received an update.
-	*/
-	UFUNCTION(BlueprintImplementableEvent)
-	void OnServerReceiveMove();
+	UFUNCTION(Server, Unreliable)
+	void ServerPerformMoveWithRotation(FVector2D Input, float Time, FVector EndPosition, FVector LookAt);
+	void ServerPerformMoveWithRotation_Implementation(FVector2D Input, float Time, FVector EndPosition, FVector LookAt);
 
 	/**
 	* Used to check move inputs before executing the move.
@@ -170,5 +194,11 @@ protected:
 	void ClientApproveMove_Implementation(float Timestamp);
 
 	void ApplyInput();
+
+	void ApplyLookAtRotation();
+
+	FVector ConsumeAccumulatedForce();
+
+	void AddMoveToServerBuffer(const FMove& Move);
 
 };
