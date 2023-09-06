@@ -56,6 +56,9 @@ void APinballPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 	EnhancedInputComp->BindAction(DefaultInputActions->FireGrapple, ETriggerEvent::Started, this, &APinballPlayer::FireGrapple);
 	EnhancedInputComp->BindAction(DefaultInputActions->FireGrapple, ETriggerEvent::Completed, this, &APinballPlayer::ReleaseGrapple);
 
+	EnhancedInputComp->BindAction(DefaultInputActions->FireWeapon, ETriggerEvent::Started, this, &APinballPlayer::FireWeapon);
+	EnhancedInputComp->BindAction(DefaultInputActions->FireWeapon, ETriggerEvent::Completed, this, &APinballPlayer::ReleaseWeapon);
+
 	EnhancedInputComp->BindAction(DefaultInputActions->SwivelReticle, ETriggerEvent::Triggered, this, &APinballPlayer::SwivelReticle);
 
 }
@@ -81,7 +84,7 @@ void APinballPlayer::AddGrappleForce()
 {
 
 	if (GrappleProjectileComponent) {
-		if (!GrappleProjectileComponent->IsPendingKill() && GrappleProjectileComponent->AttachedTo) {
+		if (IsValid(GrappleProjectileComponent) && GrappleProjectileComponent->AttachedTo) {
 			FVector Direction = GrappleProjectileComponent->GetOwner()->GetActorLocation() - GetActorLocation();
 			Direction.Normalize();
 			NetworkPhysics->AddForce(Direction * GrappleStrength);
@@ -135,6 +138,39 @@ void APinballPlayer::ServerReleaseGrapple_Implementation()
 		GrappleProjectileComponent->GetOwner()->Destroy();
 		GrappleProjectileComponent->DestroyComponent();
 	}
+}
+
+void APinballPlayer::FireWeapon()
+{
+	UE_LOG(LogTemp, Warning, TEXT("Fire Weapon"));
+
+	GetWorld()->SpawnActor<AActor>(DefaultWeaponProjectile, Reticle->GetComponentTransform());
+	ServerFireWeapon(GetWorld()->TimeSeconds);
+}
+
+void APinballPlayer::ReleaseWeapon()
+{
+	UE_LOG(LogTemp, Warning, TEXT("Release Weapon"));
+}
+
+void APinballPlayer::ServerFireWeapon_Implementation(float Time)
+{
+	UE_LOG(LogTemp, Warning, TEXT("Server Fire Weapon"));
+
+	FMove SimulatedMove = FMove();
+	SimulatedMove.Time = Time;
+	NetworkPhysics->EstimateMoveFromBuffer(SimulatedMove);
+
+	SimulatedMove.EndPosition += SimulatedMove.LookAt;
+
+	AActor* NewProj = GetWorld()->SpawnActor<AActor>(DefaultWeaponProjectile, SimulatedMove.EndPosition, SimulatedMove.LookAt.Rotation());
+	USimpleProjectile* SimpleProjectile = NewProj->GetComponentByClass<USimpleProjectile>();
+
+	SimpleProjectile->UpdatePhysics(NetworkPhysics->MoveBufferLast().Time - SimulatedMove.Time);
+}
+
+void APinballPlayer::ServerReleaseWeapon_Implementation()
+{
 }
 
 void APinballPlayer::SwivelReticle(const FInputActionValue& Value)

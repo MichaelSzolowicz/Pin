@@ -45,6 +45,10 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Grapple)
 		class UStickyProjectile* GrappleProjectileComponent;
 
+	// Weapon
+	UPROPERTY(EditDefaultsOnly, Category = Weapon)
+		TSubclassOf<AActor> DefaultWeaponProjectile;
+
 	bool print = true;
 
 public:
@@ -74,6 +78,18 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void ServerReleaseGrapple();
 	void ServerReleaseGrapple_Implementation();
+
+	void FireWeapon();
+
+	void ReleaseWeapon();
+
+	UFUNCTION(Server, Reliable)
+	void ServerFireWeapon(float Time);
+	void ServerFireWeapon_Implementation(float Time);
+
+	UFUNCTION(Server, Reliable)
+	void ServerReleaseWeapon();
+	void ServerReleaseWeapon_Implementation();
 
 	void SwivelReticle(const FInputActionValue& Value);
 

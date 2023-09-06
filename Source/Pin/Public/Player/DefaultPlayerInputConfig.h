@@ -23,5 +23,8 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	class UInputAction* SwivelReticle;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	class UInputAction* FireWeapon;
 	
 };
