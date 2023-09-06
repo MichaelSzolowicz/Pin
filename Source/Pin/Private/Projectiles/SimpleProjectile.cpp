@@ -1,5 +1,7 @@
 #include "Projectiles/SimpleProjectile.h"
 
+#include "GameFramework/GameState.h"
+
 // Sets default values for this component's properties
 USimpleProjectile::USimpleProjectile()
 {
@@ -24,5 +26,22 @@ void USimpleProjectile::TickComponent(float DeltaTime, ELevelTick TickType, FAct
 
 void USimpleProjectile::UpdatePhysics(float DeltaTime)
 {
-	GetOwner()->AddActorWorldOffset(GetOwner()->GetActorForwardVector() * Speed * DeltaTime);
+	FHitResult Hit = FHitResult();
+
+	FVector Start = GetOwner()->GetActorLocation();
+	FVector DeltaPos = GetOwner()->GetActorForwardVector() * Speed * DeltaTime;
+	FCollisionShape CollisionShape = FCollisionShape();
+	CollisionShape.MakeSphere(25);
+	FCollisionQueryParams CollisionParams = FCollisionQueryParams();
+	CollisionParams.AddIgnoredActor(GetOwner());
+
+	GetWorld()->SweepSingleByChannel(Hit, Start, Start + DeltaPos, FQuat::Identity, ECollisionChannel::ECC_WorldStatic, CollisionShape, CollisionParams);
+
+	if (Hit.bBlockingHit) {
+		GetOwner()->SetActorLocation(Hit.Location);
+	}
+	else
+	{
+		GetOwner()->AddActorWorldOffset(DeltaPos, true, &Hit);
+	}
 }

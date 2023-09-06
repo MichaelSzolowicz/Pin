@@ -11,6 +11,9 @@ class PIN_API APinballPlayer : public APawn
 	GENERATED_BODY()
 
 protected:
+	UPROPERTY(EditDefaultsOnly, Category = Test)
+		float Ping;
+
 	// Input
 	UPROPERTY(EditDefaultsOnly, Category = Input)
 		class UInputMappingContext* InputMapping;
@@ -42,6 +45,8 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Grapple)
 		class UStickyProjectile* GrappleProjectileComponent;
 
+	bool print = true;
+
 public:
 	APinballPlayer();
 
@@ -60,9 +65,15 @@ protected:
 
 	void FireGrapple();
 
+	void ReleaseGrapple();
+
 	UFUNCTION(Server, Reliable)
 	void ServerFireGrapple(float Time);
 	void ServerFireGrapple_Implementation(float Time);
+
+	UFUNCTION(Server, Reliable)
+	void ServerReleaseGrapple();
+	void ServerReleaseGrapple_Implementation();
 
 	void SwivelReticle(const FInputActionValue& Value);
 

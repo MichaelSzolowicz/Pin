@@ -152,7 +152,7 @@ void UNetworkedPhysics::ServerPerformMove_Implementation(FVector2D Input, float 
 	Move.EndPosition = EndPosition;
 	Move.LookAt = PendingLookAt;
 
-	OnServerReceiveMove.Execute();
+	if (OnServerReceiveMove.IsBound()) OnServerReceiveMove.Execute();
 
 	ServerValidateMove(Move);
 	PerformMove(Move);
@@ -232,6 +232,11 @@ void UNetworkedPhysics::ClientCorrection_Implementation(FVector EndPosition, FVe
 	}
 	// Reset the prev timestamp.
 	PrevTimestamp = GetWorld()->TimeSeconds;
+
+	FMove Move = FMove();
+	Move.EndPosition = EndPosition;
+	Move.Time = Time;
+	LastValidatedMove = Move;
 }
 
 
@@ -245,6 +250,7 @@ void UNetworkedPhysics::ClientApproveMove_Implementation(float Timestamp)
 	int Num = MovesBuffer.Num();
 	for (int i = 0; i < Num; i++) {
 		if (MovesBuffer[0].Time <= Timestamp) {
+			LastValidatedMove = MovesBuffer[0];
 			MovesBuffer.RemoveAt(0);
 		}
 		else {

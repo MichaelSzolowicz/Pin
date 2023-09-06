@@ -54,6 +54,7 @@ void APinballPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 	EnhancedInputComp->BindAction(DefaultInputActions->InputPush, ETriggerEvent::Triggered, this, &APinballPlayer::Push);
 
 	EnhancedInputComp->BindAction(DefaultInputActions->FireGrapple, ETriggerEvent::Started, this, &APinballPlayer::FireGrapple);
+	EnhancedInputComp->BindAction(DefaultInputActions->FireGrapple, ETriggerEvent::Completed, this, &APinballPlayer::ReleaseGrapple);
 
 	EnhancedInputComp->BindAction(DefaultInputActions->SwivelReticle, ETriggerEvent::Triggered, this, &APinballPlayer::SwivelReticle);
 
@@ -63,7 +64,7 @@ void APinballPlayer::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	if (GetNetMode() == ENetMode::NM_Client) {
+	if ((Controller && Controller->IsLocalPlayerController())) {
 		AddGrappleForce();
 	}
 }
@@ -78,8 +79,9 @@ void APinballPlayer::Push(const FInputActionValue& Value)
 
 void APinballPlayer::AddGrappleForce()
 {
+
 	if (GrappleProjectileComponent) {
-		if (GrappleProjectileComponent->AttachedTo) {
+		if (!GrappleProjectileComponent->IsPendingKill() && GrappleProjectileComponent->AttachedTo) {
 			FVector Direction = GrappleProjectileComponent->GetOwner()->GetActorLocation() - GetActorLocation();
 			Direction.Normalize();
 			NetworkPhysics->AddForce(Direction * GrappleStrength);
@@ -99,6 +101,16 @@ void APinballPlayer::FireGrapple()
 	}
 }
 
+void APinballPlayer::ReleaseGrapple()
+{
+	if (GrappleProjectileComponent) {
+		GrappleProjectileComponent->GetOwner()->Destroy();
+		GrappleProjectileComponent->DestroyComponent();
+
+		ServerReleaseGrapple();
+	}
+}
+
 
 void APinballPlayer::ServerFireGrapple_Implementation(float Time)
 {
@@ -112,8 +124,18 @@ void APinballPlayer::ServerFireGrapple_Implementation(float Time)
 
 	AActor* NewProj = GetWorld()->SpawnActor<AActor>(GrappleProjectileClass, SimulatedMove.EndPosition, SimulatedMove.LookAt.Rotation());
 	GrappleProjectileComponent = NewProj->GetComponentByClass<UStickyProjectile>();
+
+	GrappleProjectileComponent->UpdatePhysics(NetworkPhysics->MoveBufferLast().Time - SimulatedMove.Time);
 }
 
+
+void APinballPlayer::ServerReleaseGrapple_Implementation()
+{
+	if (GrappleProjectileComponent) {
+		GrappleProjectileComponent->GetOwner()->Destroy();
+		GrappleProjectileComponent->DestroyComponent();
+	}
+}
 
 void APinballPlayer::SwivelReticle(const FInputActionValue& Value)
 {

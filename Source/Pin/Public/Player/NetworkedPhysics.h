@@ -118,6 +118,10 @@ public:
 	UFUNCTION(BlueprintCallable)
 	float GetSpeed() { return Velocity.Size(); }
 
+	FMove GetLastValidatedMove() { return LastValidatedMove; }
+
+	FMove MoveBufferLast() { return MovesBuffer.Last(); }
+
 	void EstimateMoveFromBuffer(FMove& Move);
 
 protected:
