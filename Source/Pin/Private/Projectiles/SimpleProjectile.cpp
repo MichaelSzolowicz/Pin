@@ -13,6 +13,15 @@ USimpleProjectile::USimpleProjectile()
 void USimpleProjectile::BeginPlay()
 {
 	Super::BeginPlay();
+
+	UpdatedComponent = GetOwner()->GetRootComponent();
+
+	//OnComponentBeginOverlap.AddDynamic(this, &USimpleProjectile::BeginOverlap);
+}
+
+void USimpleProjectile::BeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+{
+	UE_LOG(LogTemp, Warning, TEXT("Simple Begin Overlap"));
 }
 
 
@@ -26,22 +35,21 @@ void USimpleProjectile::TickComponent(float DeltaTime, ELevelTick TickType, FAct
 
 void USimpleProjectile::UpdatePhysics(float DeltaTime)
 {
+	//if (Speed == 0.f) return;
+
 	FHitResult Hit = FHitResult();
 
 	FVector Start = GetOwner()->GetActorLocation();
 	FVector DeltaPos = GetOwner()->GetActorForwardVector() * Speed * DeltaTime;
-	FCollisionShape CollisionShape = FCollisionShape();
-	CollisionShape.MakeSphere(25);
+	FCollisionShape CollisionShape = GetCollisionShape();
 	FCollisionQueryParams CollisionParams = FCollisionQueryParams();
 	CollisionParams.AddIgnoredActor(GetOwner());
 
-	GetWorld()->SweepSingleByChannel(Hit, Start, Start + DeltaPos, FQuat::Identity, ECollisionChannel::ECC_WorldStatic, CollisionShape, CollisionParams);
+	//GetWorld()->SweepSingleByChannel(Hit, Start, Start + DeltaPos, FQuat::Identity, ECollisionChannel::ECC_WorldStatic, CollisionShape, CollisionParams);
+
+	UpdatedComponent->AddWorldOffset(DeltaPos, true, &Hit);
 
 	if (Hit.bBlockingHit) {
-		GetOwner()->SetActorLocation(Hit.Location);
-	}
-	else
-	{
-		GetOwner()->AddActorWorldOffset(DeltaPos, true, &Hit);
+		UpdatedComponent->SetWorldLocation(Hit.Location);
 	}
 }

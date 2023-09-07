@@ -76,7 +76,7 @@ void UPlayerPhysics::PerformMove(const FMove& Move)
 {
 	if (GetNetMode() == NM_Client) {
 		// If we are on the client we only want to apply grapple force if the move IS NOT a correction.
-		if (Move.Time >= GetWorld()->TimeSeconds && GrappleProjectile && GrappleProjectile->AttachedTo) {
+		if (Move.Time >= GetWorld()->TimeSeconds && GrappleProjectile && GrappleProjectile->GetAttachedTo()) {
 			FVector direc = (GrappleProjectile->GetOwner()->GetActorLocation() - GetOwner()->GetActorLocation());
 			direc.Normalize();
 			// Grapple force is considered a natural force since it is contextual to the environment, not player input directly.
@@ -90,7 +90,7 @@ void UPlayerPhysics::PerformMove(const FMove& Move)
 	}
 	else {
 		// The server will always add grapple force if the conditions are met.
-		if (GrappleProjectile && GrappleProjectile->AttachedTo) {
+		if (GrappleProjectile && GrappleProjectile->GetAttachedTo()) {
 			FVector direc = (GrappleProjectile->GetOwner()->GetActorLocation() - GetOwner()->GetActorLocation());
 			direc.Normalize();
 			// Grapple force is considered a natural force since it is contextual to the environment, not player input directly.

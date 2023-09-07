@@ -72,8 +72,8 @@ protected:
 	void ReleaseGrapple();
 
 	UFUNCTION(Server, Reliable)
-	void ServerFireGrapple(float Time);
-	void ServerFireGrapple_Implementation(float Time);
+	void ServerFireGrapple(float Time, FVector LookAt);
+	void ServerFireGrapple_Implementation(float Time, FVector LookAt);
 
 	UFUNCTION(Server, Reliable)
 	void ServerReleaseGrapple();
@@ -84,8 +84,8 @@ protected:
 	void ReleaseWeapon();
 
 	UFUNCTION(Server, Reliable)
-	void ServerFireWeapon(float Time);
-	void ServerFireWeapon_Implementation(float Time);
+	void ServerFireWeapon(float Time, FVector LookAt);
+	void ServerFireWeapon_Implementation(float Time, FVector LookAt);
 
 	UFUNCTION(Server, Reliable)
 	void ServerReleaseWeapon();

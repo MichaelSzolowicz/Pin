@@ -66,10 +66,6 @@ void APinballPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 void APinballPlayer::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
-	if ((Controller && Controller->IsLocalPlayerController())) {
-		AddGrappleForce();
-	}
 }
 
 void APinballPlayer::Push(const FInputActionValue& Value)
@@ -80,11 +76,20 @@ void APinballPlayer::Push(const FInputActionValue& Value)
 	NetworkPhysics->SetInput(Input);
 }
 
+/**
+* Add force directed towards the grapple projectile, if it is attached.
+* If a local player controller, runs every frame until grapple projectile is invalid.
+*/
 void APinballPlayer::AddGrappleForce()
 {
+	UE_LOG(LogTemp, Warning, TEXT("Add Grapple Force"));
 
-	if (GrappleProjectileComponent) {
-		if (IsValid(GrappleProjectileComponent) && GrappleProjectileComponent->AttachedTo) {
+	if (IsValid(GrappleProjectileComponent)) {
+		if (Controller->IsLocalPlayerController()) {
+			GetWorldTimerManager().SetTimerForNextTick(this, &APinballPlayer::AddGrappleForce);
+		}
+
+		if (IsValid(GrappleProjectileComponent->GetAttachedTo())) {
 			FVector Direction = GrappleProjectileComponent->GetOwner()->GetActorLocation() - GetActorLocation();
 			Direction.Normalize();
 			NetworkPhysics->AddForce(Direction * GrappleStrength);
@@ -99,8 +104,11 @@ void APinballPlayer::FireGrapple()
 	AActor* NewProj = GetWorld()->SpawnActor<AActor>(GrappleProjectileClass, Reticle->GetComponentTransform());
 	GrappleProjectileComponent = NewProj->GetComponentByClass<UStickyProjectile>();
 
+	GrappleProjectileComponent->OnAttached.Unbind();
+	GrappleProjectileComponent->OnAttached.BindUObject(this, &APinballPlayer::AddGrappleForce);
+
 	if (GetNetMode() == ENetMode::NM_Client) {
-		ServerFireGrapple(GetWorld()->TimeSeconds);
+		ServerFireGrapple(GetWorld()->TimeSeconds, Reticle->GetRelativeLocation());
 	}
 }
 
@@ -115,7 +123,7 @@ void APinballPlayer::ReleaseGrapple()
 }
 
 
-void APinballPlayer::ServerFireGrapple_Implementation(float Time)
+void APinballPlayer::ServerFireGrapple_Implementation(float Time, FVector LookAt)
 {
 	UE_LOG(LogTemp, Warning, TEXT("ServerFireGrapple"));
 
@@ -123,9 +131,8 @@ void APinballPlayer::ServerFireGrapple_Implementation(float Time)
 	SimulatedMove.Time = Time;
 	NetworkPhysics->EstimateMoveFromBuffer(SimulatedMove);
 
-	SimulatedMove.EndPosition += SimulatedMove.LookAt;
-
-	AActor* NewProj = GetWorld()->SpawnActor<AActor>(GrappleProjectileClass, SimulatedMove.EndPosition, SimulatedMove.LookAt.Rotation());
+	// Should clamp look at if it is greater than reticle radius.
+	AActor* NewProj = GetWorld()->SpawnActor<AActor>(GrappleProjectileClass, SimulatedMove.EndPosition + LookAt, LookAt.Rotation());
 	GrappleProjectileComponent = NewProj->GetComponentByClass<UStickyProjectile>();
 
 	GrappleProjectileComponent->UpdatePhysics(NetworkPhysics->MoveBufferLast().Time - SimulatedMove.Time);
@@ -145,7 +152,10 @@ void APinballPlayer::FireWeapon()
 	UE_LOG(LogTemp, Warning, TEXT("Fire Weapon"));
 
 	GetWorld()->SpawnActor<AActor>(DefaultWeaponProjectile, Reticle->GetComponentTransform());
-	ServerFireWeapon(GetWorld()->TimeSeconds);
+
+	if (GetNetMode() == NM_Client) {
+		ServerFireWeapon(GetWorld()->TimeSeconds, Reticle->GetRelativeLocation());
+	}
 }
 
 void APinballPlayer::ReleaseWeapon()
@@ -153,7 +163,7 @@ void APinballPlayer::ReleaseWeapon()
 	UE_LOG(LogTemp, Warning, TEXT("Release Weapon"));
 }
 
-void APinballPlayer::ServerFireWeapon_Implementation(float Time)
+void APinballPlayer::ServerFireWeapon_Implementation(float Time, FVector LookAt)
 {
 	UE_LOG(LogTemp, Warning, TEXT("Server Fire Weapon"));
 
@@ -161,9 +171,8 @@ void APinballPlayer::ServerFireWeapon_Implementation(float Time)
 	SimulatedMove.Time = Time;
 	NetworkPhysics->EstimateMoveFromBuffer(SimulatedMove);
 
-	SimulatedMove.EndPosition += SimulatedMove.LookAt;
-
-	AActor* NewProj = GetWorld()->SpawnActor<AActor>(DefaultWeaponProjectile, SimulatedMove.EndPosition, SimulatedMove.LookAt.Rotation());
+	// Should clamp look at if it is greater than reticle radius.
+	AActor* NewProj = GetWorld()->SpawnActor<AActor>(DefaultWeaponProjectile, SimulatedMove.EndPosition + LookAt, LookAt.Rotation());
 	USimpleProjectile* SimpleProjectile = NewProj->GetComponentByClass<USimpleProjectile>();
 
 	SimpleProjectile->UpdatePhysics(NetworkPhysics->MoveBufferLast().Time - SimulatedMove.Time);
