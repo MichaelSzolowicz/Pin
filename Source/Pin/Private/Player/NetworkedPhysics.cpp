@@ -64,7 +64,7 @@ void UNetworkedPhysics::UpdatePhysics(float DeltaTime)
 }
 
 
-/*
+/**
 * Add gravitational force to Accumulated Force.
 */
 void UNetworkedPhysics::CalcGravity()
@@ -159,6 +159,15 @@ void UNetworkedPhysics::ServerPerformMove_Implementation(FVector2D Input, float 
 	CheckCompletedMove(Move);
 }
 
+
+/**
+* RPC to execute and validate move with rotation.
+* @param InputX
+* @param InputY
+* @param Time
+* @param EndPosition
+* @param LookAt Look at rotation.
+*/
 void UNetworkedPhysics::ServerPerformMoveWithRotation_Implementation(FVector2D Input, float Time, FVector EndPosition, FVector LookAt)
 {
 	SetLookAtRotation(LookAt);
@@ -259,6 +268,11 @@ void UNetworkedPhysics::ClientApproveMove_Implementation(float Timestamp)
 	}
 }
 
+
+/**
+* Find the move with the closet timestamp less than or qual in Moves Buffer.
+* @param Move Move to look for. Also holds the reuslting closet move.
+*/
 void UNetworkedPhysics::EstimateMoveFromBuffer(FMove& Move)
 {
 	int i = 0;
@@ -271,32 +285,50 @@ void UNetworkedPhysics::EstimateMoveFromBuffer(FMove& Move)
 	}
 }
 
+
+/**
+* Set the component this can update the rotation of.
+* @param Component
+*/
 void UNetworkedPhysics::SetUpdatedRotationComponent(USceneComponent* Component)
 {
 	UpdatedRotationComponent = Component;
-	if (GetOwner()->GetLocalRole() == ENetRole::ROLE_Authority) {
-		if (Component) {
-			UE_LOG(LogTemp, Warning, TEXT("Set rotation root %s"), *Component->GetName());
-		}
-	}
 }
 
 
+/**
+* Set the value of Pending Input.
+* @param Input
+*/
 void UNetworkedPhysics::SetInput(FVector2D Input)
 {
 	PendingInput = Input;
 }
 
+
+/**
+* Sets the value of Pending Look At.
+* @param LookAt New Pending Look At.
+*/
 void UNetworkedPhysics::SetLookAtRotation(FVector LookAt)
 {
 	PendingLookAt = LookAt;
 }
 
+
+/**
+* Add  force to accumulated force.
+* @param Force
+*/
 void UNetworkedPhysics::AddForce(FVector Force)
 {
 	AccumulatedForce += Force;
 }
 
+
+/**
+* Adds Pending Input * Input Strength to Accumulated Force, then sets Pending Input to zero.
+*/
 void UNetworkedPhysics::ApplyInput()
 {
 	FVector AppliedForce = FVector(PendingInput.X, PendingInput.Y, 0.f);
@@ -305,6 +337,10 @@ void UNetworkedPhysics::ApplyInput()
 	PendingInput = FVector2D::Zero();
 }
 
+
+/**
+* Sets Updated Rotation Component world rotation to Pending Look At rotation.
+*/
 void UNetworkedPhysics::ApplyLookAtRotation()
 {
 	UE_LOG(LogTemp, Warning, TEXT("Apply rotation"));
@@ -313,6 +349,11 @@ void UNetworkedPhysics::ApplyLookAtRotation()
 	}
 }
 
+
+/**
+* Sets AccumulatedForce to zero and returns its previous value.
+* @return Accumulated Force
+*/
 FVector UNetworkedPhysics::ConsumeAccumulatedForce()
 {
 	FVector Temp = AccumulatedForce;
@@ -320,6 +361,10 @@ FVector UNetworkedPhysics::ConsumeAccumulatedForce()
 	return Temp;
 }
 
+/**
+* Adds move and removes first move in array if delta is greater than ServerMaxBufferDeltaTime.
+* @param Move
+*/
 void UNetworkedPhysics::AddMoveToServerBuffer(const FMove& Move)
 {
 	if (GetNetMode() < NM_ListenServer) return;

@@ -46,9 +46,11 @@ protected:
 	//Rotation
 	FVector PendingLookAt;
 
+	/** Send Look At rotation to server if true. */
 	UPROPERTY(EditDefaultsOnly, Category = "Rotation")
 		bool bShouldUpdateRotation = false;
 
+	/** Update this component's rotation if bShouldUpdateRotation is true. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Rotation")
 		USceneComponent* UpdatedRotationComponent;
 
@@ -131,7 +133,7 @@ protected:
 	*/
 	virtual void UpdatePhysics(float DeltaTime);	
 
-	/*
+	/**
 	* Add gravitational force to Accumulated Force.
 	*/
 	void CalcGravity();

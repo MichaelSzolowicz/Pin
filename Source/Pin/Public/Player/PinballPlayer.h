@@ -29,6 +29,7 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = CapsuleComponent)
 		class UCapsuleComponent* CapsuleComponent;
 
+	/** Seperates the player's look at direction from physics. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = RotationRoot)
 		class USceneComponent* RotationRoot;
 
@@ -49,8 +50,6 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = Weapon)
 		TSubclassOf<AActor> DefaultWeaponProjectile;
 
-	bool print = true;
-
 public:
 	APinballPlayer();
 
@@ -61,36 +60,74 @@ public:
 	virtual void Tick(float DeltaTime) override;
 
 protected:
+	/**
+	* Apply force directly to player via network physics component.
+	*/
 	UFUNCTION()
 	void Push(const FInputActionValue& Value);
 
+	/**
+	* Add force directed towards the grapple projectile, if it is attached.
+	* If a local player controller, runs every frame until grapple projectile is invalid.
+	*/
 	UFUNCTION() 
 	void AddGrappleForce();
 
+	/**
+	* Launch instance of Grapple Projectile Class.
+	*/
 	void FireGrapple();
 
+	/**
+	* Destroy grapple projectile on the client, send rpc to server.
+	*/
 	void ReleaseGrapple();
 
+	/**
+	* Launch Grapple Projectile on server.
+	* @param Time - Spawns from the position in network physics' move buffer with nearest timestamp.
+	* @param LookAt - Combined forward vector / offset from root.
+	*/
 	UFUNCTION(Server, Reliable)
 	void ServerFireGrapple(float Time, FVector LookAt);
 	void ServerFireGrapple_Implementation(float Time, FVector LookAt);
 
+	/**
+	* Destroy grapple projectile on server.
+	*/
 	UFUNCTION(Server, Reliable)
 	void ServerReleaseGrapple();
 	void ServerReleaseGrapple_Implementation();
 
+	/**
+	* Launch instance Default Weapon Projectile.
+	*/
 	void FireWeapon();
 
+	/**
+	* Called when the player releases the fire weapon button.
+	*/
 	void ReleaseWeapon();
 
+	/**
+	* Launch Default Weapon Projectile on server.
+	* @param Time - Spawns from the position in network physics' move buffer with nearest timestamp.
+	* @param LookAt - Combined forward vector / offset from root.
+	*/
 	UFUNCTION(Server, Reliable)
 	void ServerFireWeapon(float Time, FVector LookAt);
 	void ServerFireWeapon_Implementation(float Time, FVector LookAt);
 
+	/**
+	* Can be called to perform actions on realse weapon on server.
+	*/
 	UFUNCTION(Server, Reliable)
 	void ServerReleaseWeapon();
 	void ServerReleaseWeapon_Implementation();
 
+	/**
+	* Update reticle offset using mouse delta.
+	*/
 	void SwivelReticle(const FInputActionValue& Value);
 
 };

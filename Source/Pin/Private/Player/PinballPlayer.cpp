@@ -68,6 +68,10 @@ void APinballPlayer::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 }
 
+
+/**
+* Apply force directly to player via network physics component.
+*/
 void APinballPlayer::Push(const FInputActionValue& Value)
 {
 	FVector2D Input = Value.Get<FVector2D>();
@@ -97,6 +101,10 @@ void APinballPlayer::AddGrappleForce()
 	}
 }
 
+
+/**
+* Launch instance of Grapple Projectile Class.
+*/
 void APinballPlayer::FireGrapple()
 {
 	UE_LOG(LogTemp, Warning, TEXT("Fire Grapple"));
@@ -112,9 +120,13 @@ void APinballPlayer::FireGrapple()
 	}
 }
 
+
+/**
+* Destroy grapple projectile on the client, send rpc to server.
+*/
 void APinballPlayer::ReleaseGrapple()
 {
-	if (GrappleProjectileComponent) {
+	if (GrappleProjectileComponent && GrappleProjectileComponent->GetOwner()) {
 		GrappleProjectileComponent->GetOwner()->Destroy();
 		GrappleProjectileComponent->DestroyComponent();
 
@@ -123,6 +135,11 @@ void APinballPlayer::ReleaseGrapple()
 }
 
 
+/**
+* Launch Grapple Projectile on server. 
+* @param Time - Spawns from the position in network physics' move buffer with nearest timestamp.
+* @param LookAt - Combined forward vector / offset from root.
+*/
 void APinballPlayer::ServerFireGrapple_Implementation(float Time, FVector LookAt)
 {
 	UE_LOG(LogTemp, Warning, TEXT("ServerFireGrapple"));
@@ -139,6 +156,9 @@ void APinballPlayer::ServerFireGrapple_Implementation(float Time, FVector LookAt
 }
 
 
+/**
+* Destroy grapple projectile on server.
+*/
 void APinballPlayer::ServerReleaseGrapple_Implementation()
 {
 	if (GrappleProjectileComponent) {
@@ -147,6 +167,10 @@ void APinballPlayer::ServerReleaseGrapple_Implementation()
 	}
 }
 
+
+/**
+* Launch instance Default Weapon Projectile. 
+*/
 void APinballPlayer::FireWeapon()
 {
 	UE_LOG(LogTemp, Warning, TEXT("Fire Weapon"));
@@ -158,11 +182,21 @@ void APinballPlayer::FireWeapon()
 	}
 }
 
+
+/**
+* Called when the player releases the fire weapon button.
+*/
 void APinballPlayer::ReleaseWeapon()
 {
 	UE_LOG(LogTemp, Warning, TEXT("Release Weapon"));
 }
 
+
+/**
+* Launch Default Weapon Projectile on server.
+* @param Time - Spawns from the position in network physics' move buffer with nearest timestamp.
+* @param LookAt - Combined forward vector / offset from root.
+*/
 void APinballPlayer::ServerFireWeapon_Implementation(float Time, FVector LookAt)
 {
 	UE_LOG(LogTemp, Warning, TEXT("Server Fire Weapon"));
@@ -178,10 +212,18 @@ void APinballPlayer::ServerFireWeapon_Implementation(float Time, FVector LookAt)
 	SimpleProjectile->UpdatePhysics(NetworkPhysics->MoveBufferLast().Time - SimulatedMove.Time);
 }
 
+
+/**
+* Can be called to perform actions on realse weapon on server.
+*/
 void APinballPlayer::ServerReleaseWeapon_Implementation()
 {
 }
 
+
+/**
+* Update reticle offset using mouse delta.
+*/
 void APinballPlayer::SwivelReticle(const FInputActionValue& Value)
 {
 	FVector2D Offset = Value.Get<FVector2D>();
