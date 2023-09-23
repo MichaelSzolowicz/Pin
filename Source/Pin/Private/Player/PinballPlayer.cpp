@@ -9,6 +9,7 @@
 #include "Player/NetworkedPhysics.h"
 #include "Player/Reticle.h"
 #include "Projectiles/StickyProjectile.h"
+#include "PawnUtilities.h"
 
 
 APinballPlayer::APinballPlayer()
@@ -66,6 +67,14 @@ void APinballPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 void APinballPlayer::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	OrientToFloor();
+}
+
+void APinballPlayer::OrientToFloor()
+{
+	FQuat DeltaRotation = UPawnUtilities::RotateToFloor(RotationRoot);
+	RotationRoot->AddWorldRotation(DeltaRotation);
 }
 
 

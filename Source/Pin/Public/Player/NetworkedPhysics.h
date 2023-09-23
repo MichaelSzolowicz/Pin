@@ -122,6 +122,8 @@ public:
 
 	FMove GetLastValidatedMove() { return LastValidatedMove; }
 
+	FVector GetLookAt() { return PendingLookAt; }
+
 	FMove MoveBufferLast() { return MovesBuffer.Last(); }
 
 	void EstimateMoveFromBuffer(FMove& Move);

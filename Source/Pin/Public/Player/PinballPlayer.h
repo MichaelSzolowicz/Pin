@@ -60,6 +60,8 @@ public:
 	virtual void Tick(float DeltaTime) override;
 
 protected:
+	void OrientToFloor();
+
 	/**
 	* Apply force directly to player via network physics component.
 	*/

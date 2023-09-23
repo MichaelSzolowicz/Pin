@@ -14,6 +14,6 @@ class PIN_API UPawnUtilities : public UBlueprintFunctionLibrary
 
 public:
 	UFUNCTION(BlueprintCallable)
-	static FQuat RotateToFloor(const AActor* Actor);
+	static FQuat RotateToFloor(const USceneComponent* RootComponent, float ProbeDistance = 250.f);
 	
 };

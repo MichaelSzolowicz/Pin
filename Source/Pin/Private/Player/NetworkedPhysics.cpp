@@ -345,7 +345,8 @@ void UNetworkedPhysics::ApplyLookAtRotation()
 {
 	UE_LOG(LogTemp, Warning, TEXT("Apply rotation"));
 	if (UpdatedRotationComponent) {
-		UpdatedRotationComponent->SetWorldRotation(PendingLookAt.Rotation());
+		FQuat DeltaRotation = UpdatedRotationComponent->GetForwardVector().ToOrientationQuat().Inverse() * PendingLookAt.ToOrientationQuat();
+		UpdatedRotationComponent->AddWorldRotation(DeltaRotation);
 	}
 }
 
