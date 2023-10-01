@@ -24,7 +24,7 @@ APinballPlayer::APinballPlayer()
 	RotationRoot = CreateDefaultSubobject<USceneComponent>(TEXT("RotationRoot"));
 	RotationRoot->SetupAttachment(RootComponent);
 
-	Reticle = CreateDefaultSubobject<UReticle>(TEXT("SpawnAt"));
+	Reticle = CreateDefaultSubobject<UReticle>(TEXT("Reticle"));
 	Reticle->SetupAttachment(RootComponent);
 }
 
@@ -68,13 +68,16 @@ void APinballPlayer::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	OrientToFloor();
+	if (Controller && Controller->IsLocalPlayerController()) {
+		OrientToFloor();
+	}
 }
 
 void APinballPlayer::OrientToFloor()
 {
 	FQuat DeltaRotation = UPawnUtilities::RotateToFloor(RotationRoot);
 	RotationRoot->AddWorldRotation(DeltaRotation);
+	Reticle->SetPlaneNormal(RotationRoot->GetUpVector());
 }
 
 

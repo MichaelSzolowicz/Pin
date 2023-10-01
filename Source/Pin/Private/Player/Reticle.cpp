@@ -1,25 +1,5 @@
 #include "Player/Reticle.h"
 
-// Sets default values for this component's properties
-UReticle::UReticle()
-{
-	PrimaryComponentTick.bCanEverTick = false;
-
-}
-
-
-// Called when the game starts
-void UReticle::BeginPlay()
-{
-	Super::BeginPlay();
-}
-
-
-// Called every frame
-void UReticle::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
-{
-	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-}
 
 /*
 * Offsets the reticle by provided input, using reticle sensitivity properties.
@@ -28,21 +8,47 @@ void UReticle::TickComponent(float DeltaTime, ELevelTick TickType, FActorCompone
 */
 FVector UReticle::AddInput(FVector2D Input)
 {
-	AddWorldOffset(FVector(Input, 0.f));
-	SetWorldRotation(GetRelativeLocation().Rotation());
+	Offset += FVector(Input, 0.f);
+
+	SetRelativeLocation(Offset);
 
 	ClampPos();
+	if (bConstrainToPlaneNormal) ConstrainToPlaneNormal();
+
+	SetWorldRotation(GetRelativeLocation().Rotation());
 
 	return GetComponentLocation();
 }
 
 void UReticle::ClampPos()
 {
-	FVector Clamped = GetRelativeLocation();
+	FVector Clamped = Offset;
 	if (Clamped.Size() > MaxRadius) {
 		Clamped.Normalize();
 		Clamped *= MaxRadius;
-		SetRelativeLocation(Clamped);
+		Offset = Clamped;
 	}
 }
 
+void UReticle::ConstrainToPlaneNormal()
+{
+	FVector Pos = Offset;
+	float Size = Pos.Size();
+	Pos.Normalize();
+
+	// Calculate component of pos othogonal to the plane normal
+	// defined as ((pos . n) / ||n||^2) * n
+	// Subtract the orthogonal component from pos
+	Pos = Pos - Pos.Dot(PlaneNormal) * PlaneNormal;
+
+	// Update pos
+	SetRelativeLocation(Pos * Size);
+}
+
+void UReticle::SetPlaneNormal(FVector Normal)
+{
+	PlaneNormal = Normal;
+
+	if (bConstrainToPlaneNormal) ConstrainToPlaneNormal();
+	SetWorldRotation(GetRelativeLocation().Rotation());
+}

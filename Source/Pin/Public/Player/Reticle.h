@@ -17,21 +17,24 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 		float MaxRadius = 100.0f;
 
-	// Sets default values for this component's properties
-	UReticle();
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+		bool bConstrainToPlaneNormal = true;
 
 protected:
-	// Called when the game starts
-	virtual void BeginPlay() override;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+		FVector PlaneNormal;
+
+		FVector Offset;
 
 public:	
-	// Called every frame
-	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
-
 	UFUNCTION(BlueprintCallable)
 	FVector AddInput(FVector2D Input);
 
+	void SetPlaneNormal(FVector Normal);
+
+protected:
 	void ClampPos();
 
+	void ConstrainToPlaneNormal();
 		
 };
