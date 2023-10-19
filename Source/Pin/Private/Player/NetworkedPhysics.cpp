@@ -223,6 +223,7 @@ void UNetworkedPhysics::ClientCorrection_Implementation(FVector EndPosition, FVe
 	UpdatedComponent->SetWorldLocation(EndPosition);
 	ComponentVelocity = EndVelocity;
 	
+	// prolly can change this to a call to clientapprovemove.
 	int Num = MovesBuffer.Num();
 	for (int i = 0; i < Num; i++) {
 		// Remove all moves prior to the corrected move.

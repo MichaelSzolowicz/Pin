@@ -73,6 +73,11 @@ void APinballPlayer::Tick(float DeltaTime)
 	}
 }
 
+void APinballPlayer::Bump(FVector Impulse)
+{
+	UE_LOG(LogTemp, Warning, TEXT("%s was bumped"), *this->GetName());
+}
+
 void APinballPlayer::OrientToFloor()
 {
 	FQuat DeltaRotation = UPawnUtilities::RotateToFloor(RotationRoot);
@@ -164,7 +169,9 @@ void APinballPlayer::ServerFireGrapple_Implementation(float Time, FVector LookAt
 	AActor* NewProj = GetWorld()->SpawnActor<AActor>(GrappleProjectileClass, SimulatedMove.EndPosition + LookAt, LookAt.Rotation());
 	GrappleProjectileComponent = NewProj->GetComponentByClass<UStickyProjectile>();
 
-	GrappleProjectileComponent->UpdatePhysics(NetworkPhysics->MoveBufferLast().Time - SimulatedMove.Time);
+	if (GrappleProjectileComponent) {
+		GrappleProjectileComponent->UpdatePhysics(NetworkPhysics->MoveBufferLast().Time - SimulatedMove.Time);
+	}
 }
 
 
@@ -221,7 +228,9 @@ void APinballPlayer::ServerFireWeapon_Implementation(float Time, FVector LookAt)
 	AActor* NewProj = GetWorld()->SpawnActor<AActor>(DefaultWeaponProjectile, SimulatedMove.EndPosition + LookAt, LookAt.Rotation());
 	USimpleProjectile* SimpleProjectile = NewProj->GetComponentByClass<USimpleProjectile>();
 
-	SimpleProjectile->UpdatePhysics(NetworkPhysics->MoveBufferLast().Time - SimulatedMove.Time);
+	if (SimpleProjectile) {
+		SimpleProjectile->UpdatePhysics(NetworkPhysics->MoveBufferLast().Time - SimulatedMove.Time);
+	}
 }
 
 

@@ -35,8 +35,6 @@ void USimpleProjectile::TickComponent(float DeltaTime, ELevelTick TickType, FAct
 
 void USimpleProjectile::UpdatePhysics(float DeltaTime)
 {
-	//if (Speed == 0.f) return;
-
 	FHitResult Hit = FHitResult();
 
 	FVector Start = GetOwner()->GetActorLocation();
@@ -44,8 +42,6 @@ void USimpleProjectile::UpdatePhysics(float DeltaTime)
 	FCollisionShape CollisionShape = GetCollisionShape();
 	FCollisionQueryParams CollisionParams = FCollisionQueryParams();
 	CollisionParams.AddIgnoredActor(GetOwner());
-
-	//GetWorld()->SweepSingleByChannel(Hit, Start, Start + DeltaPos, FQuat::Identity, ECollisionChannel::ECC_WorldStatic, CollisionShape, CollisionParams);
 
 	UpdatedComponent->AddWorldOffset(DeltaPos, true, &Hit);
 

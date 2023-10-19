@@ -21,7 +21,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sense")
 		TEnumAsByte<ECollisionChannel> PawnChannel;
 
-	/* Distance which ai probes against level geometry. Larger values cause the ai to more strongly avoid obstacles. */
+	/** Distance which ai probes against level geometry. Larger values cause the ai to more strongly avoid obstacles. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sense")
 		float EnvironmentDetectionRadius = 400.0f;
 

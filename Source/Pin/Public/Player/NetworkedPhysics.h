@@ -130,7 +130,7 @@ public:
 
 protected:
 	/**
-	* Apply Accumulated Force as movement. Saves the resulting move and send it to the servers.
+	* Apply Accumulated Force as movement. Save the resulting move and send it to the server.
 	* @param DeltaTime
 	*/
 	virtual void UpdatePhysics(float DeltaTime);	
@@ -141,8 +141,7 @@ protected:
 	void CalcGravity();
 
 	/**
-	* Apply Accumulated Force as movement. Saves the resulting move and send it to the servers.
-	* Also applies natural forces. Note this function should later be decomposed into multiple functions.
+	* Physically moves the updated component. Applies normal impulse.
 	* @param Move The move to be performed.
 	*/
 	UFUNCTION()
@@ -170,7 +169,7 @@ protected:
 	void ServerPerformMoveWithRotation_Implementation(FVector2D Input, float Time, FVector EndPosition, FVector LookAt);
 
 	/**
-	* Used to check move inputs before executing the move.
+	* Used to check move before execution.
 	* @param Move The move to be checked.
 	*/
 	bool ServerValidateMove(const FMove& Move);

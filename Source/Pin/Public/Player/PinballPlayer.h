@@ -2,11 +2,14 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Pawn.h"
+
+#include "Bumpers/BumperInterface.h"
+
 #include "PinballPlayer.generated.h"
  
 
 UCLASS()
-class PIN_API APinballPlayer : public APawn
+class PIN_API APinballPlayer : public APawn, public IBumperInterface
 {
 	GENERATED_BODY()
 
@@ -29,7 +32,7 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = CapsuleComponent)
 		class UCapsuleComponent* CapsuleComponent;
 
-	/** Seperates the player's look at direction from physics. */
+	/** Seperates the player's look direction from physics. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = RotationRoot)
 		class USceneComponent* RotationRoot;
 
@@ -58,6 +61,8 @@ public:
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
 	virtual void Tick(float DeltaTime) override;
+
+	virtual void Bump(FVector Impulse) override;
 
 protected:
 	void OrientToFloor();
