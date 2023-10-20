@@ -76,6 +76,8 @@ void APinballPlayer::Tick(float DeltaTime)
 void APinballPlayer::Bump(FVector Impulse)
 {
 	UE_LOG(LogTemp, Warning, TEXT("%s was bumped"), *this->GetName());
+
+	NetworkPhysics->AddImpulse(Impulse);
 }
 
 void APinballPlayer::OrientToFloor()

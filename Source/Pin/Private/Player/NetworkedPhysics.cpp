@@ -317,8 +317,17 @@ void UNetworkedPhysics::SetLookAtRotation(FVector LookAt)
 }
 
 
+/*
+* Add impulse as an instantenious change in velocity.
+*/
+void UNetworkedPhysics::AddImpulse(FVector Impulse)
+{
+	ComponentVelocity += InverseMass() * Impulse;
+}
+
+
 /**
-* Add  force to accumulated force.
+* Add force to accumulated force.
 * @param Force
 */
 void UNetworkedPhysics::AddForce(FVector Force)

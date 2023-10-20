@@ -110,6 +110,9 @@ public:
 	void SetLookAtRotation(FVector LookAt);
 
 	UFUNCTION(BlueprintCallable)
+	void AddImpulse(FVector Impulse);
+
+	UFUNCTION(BlueprintCallable)
 	void AddForce(FVector Force);
 
 	// Getter functions.

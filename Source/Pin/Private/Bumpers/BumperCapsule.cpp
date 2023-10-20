@@ -15,6 +15,13 @@ void UBumperCapsule::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPr
 
 	IBumperInterface* BumpedObject = Cast<IBumperInterface>(OtherActor);
 	if (BumpedObject) {
-		BumpedObject->Bump(NormalImpulse * Strength);
+		FVector Impulse = FVector::VectorPlaneProject(OtherActor->GetActorLocation() - GetComponentLocation(), GetUpVector());
+		Impulse.Normalize();
+
+		UE_LOG(LogTemp, Warning, TEXT("Impulse: %s"), *Impulse.ToString());
+
+		DrawDebugLine(GetWorld(), GetComponentLocation(), GetComponentLocation() + Impulse * 99999, FColor::Yellow, true, 100.0f);
+
+		BumpedObject->Bump(Impulse * Strength);
 	}
 }
