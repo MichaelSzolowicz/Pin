@@ -28,6 +28,10 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Physics)
 		class UNetworkedPhysics* NetworkPhysics;
 
+	// Health
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Physics)
+		class UHealthComponent* HealthComponent;
+
 	// Scene components
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = CapsuleComponent)
 		class UCapsuleComponent* CapsuleComponent;
@@ -52,6 +56,8 @@ protected:
 	// Weapon
 	UPROPERTY(EditDefaultsOnly, Category = Weapon)
 		TSubclassOf<AActor> DefaultWeaponProjectile;
+
+		FActorSpawnParameters ProjectileSpawnParams;
 
 public:
 	APinballPlayer();

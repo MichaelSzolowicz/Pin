@@ -15,7 +15,10 @@ public:
 		float Sensitivity = 1.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-		float MaxRadius = 100.0f;
+		float MaxRadius = 200.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+		float MinRadius = 70.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 		bool bConstrainToPlaneNormal = true;
@@ -24,7 +27,7 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 		FVector PlaneNormal;
 
-		FVector Offset;
+	FVector Offset;
 
 public:	
 	UFUNCTION(BlueprintCallable)
