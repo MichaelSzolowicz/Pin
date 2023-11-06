@@ -8,45 +8,37 @@ UDamageComponent::UDamageComponent()
 	PrimaryComponentTick.bCanEverTick = true;
 }
 
-void UDamageComponent::RegisterHitBox(FHitBox HitBox)
+void UDamageComponent::BeginPlay()
 {
-	if (IsValid(HitBox.Collider)) {
-		HitBoxMap.Add(HitBox.Collider->GetName(), HitBox);
-	}
+	RegisterActorAsHitbox();
+}
 
-	if (HitBox.DamageType.GetDefaultObject()->bDamageOnOverlap) {
-		HitBox.Collider->OnComponentBeginOverlap.AddDynamic(this, &UDamageComponent::OnHitBoxOverlap);
+void UDamageComponent::RegisterActorAsHitbox()
+{
+	UMasterDamageType* Type = DamageType.GetDefaultObject();
+
+	if (Type->bDamageOnOverlap) {
+		GetOwner()->OnActorBeginOverlap.AddDynamic(this, &UDamageComponent::OnHitBoxOverlap);
 	}
-	if (HitBox.DamageType.GetDefaultObject()->bDamageOnHit) {
-		HitBox.Collider->OnComponentHit.AddDynamic(this, &UDamageComponent::OnHitBoxHit);
+	if (Type->bDamageOnHit) {
+		GetOwner()->OnActorHit.AddDynamic(this, &UDamageComponent::OnHitBoxHit);
 	}
 }
 
-void UDamageComponent::RegisterHitBoxes(TArray<FHitBox> HitBoxes)
+void UDamageComponent::OnHitBoxOverlap(AActor* OverlappedActor, AActor* OtherActor)
 {
-	for (FHitBox HitBox : HitBoxes) {
-		RegisterHitBox(HitBox);
-	}
+	InflictDamage(OtherActor);
 }
 
-void UDamageComponent::OnHitBoxOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+void UDamageComponent::OnHitBoxHit(AActor* SelfActor, AActor* OtherActor, FVector NormalImpulse, const FHitResult& Hit)
 {
-	InflictDamage(OverlappedComponent, OtherComp);
+	InflictDamage(OtherActor);
 }
 
-void UDamageComponent::OnHitBoxHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
+void UDamageComponent::InflictDamage(AActor* DamagedActor)
 {
-	InflictDamage(HitComponent, OtherComp);
-}
+	FDamageEvent Event = FDamageEvent();
+	Event.DamageTypeClass = DamageType;
 
-void UDamageComponent::InflictDamage(UPrimitiveComponent* HitComponent, UPrimitiveComponent* OtherComp)
-{
-	UHealthComponent* HealthComp = OtherComp->GetOwner()->FindComponentByClass<UHealthComponent>();
-	if (!IsValid(HealthComp) || !IsValid(OtherComp)) {
-		return;
-	}
-
-	FHitBox HitBox = *HitBoxMap.Find(HitComponent->GetName());
-
-	HealthComp->Damage(HitBox.DamageType, OtherComp);
+	DamagedActor->TakeDamage(ActorDamageValue, Event, GetOwner()->GetInstigatorController<AController>(), GetOwner());
 }

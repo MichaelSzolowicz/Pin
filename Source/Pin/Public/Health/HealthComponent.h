@@ -19,14 +19,8 @@ public:
 	UFUNCTION()
 	virtual void BeginPlay() override;
 
-	UFUNCTION(BlueprintCallable)
-	void RegisterHurtBox(UPrimitiveComponent* Component);
-
-	UFUNCTION(BlueprintCallable)
-	void RegisterHurtBoxes(TArray<UPrimitiveComponent*> Components);
-
 	UFUNCTION()
-	void Damage(TSubclassOf<UMasterDamageType> DamageType, const UPrimitiveComponent* DamagedComponent);
+	void Damage(AActor* DamagedActor, float Damage, const class UDamageType* DamageType, class AController* InstigatedBy, AActor* DamageCauser);
 
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = HurtBoxes)

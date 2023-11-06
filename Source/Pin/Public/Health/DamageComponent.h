@@ -3,23 +3,9 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 
-#include "Containers/Map.h"
-
 #include "DamageComponent.generated.h"
 
 class UMasterDamageType;
-
-USTRUCT(Blueprintable)
-struct PIN_API FHitBox
-{
-	GENERATED_BODY()
-
-public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	UPrimitiveComponent* Collider;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TSubclassOf<UMasterDamageType> DamageType;
-};
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class PIN_API UDamageComponent : public UActorComponent
@@ -27,24 +13,27 @@ class PIN_API UDamageComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:	
+	UPROPERTY(EditDefaultsOnly, Category = Damage)
+	TSubclassOf<UMasterDamageType> DamageType;
+
+	UPROPERTY(EditDefaultsOnly, Category = Damage)
+	float ActorDamageValue = 1.0f;
+
 	// Sets default values for this component's properties
 	UDamageComponent();
 
+	UFUNCTION()
+	virtual void BeginPlay() override;
+
 protected:
-	UPROPERTY(BlueprintReadWrite, Category = HitBoxes)
-	TMap<FString, FHitBox> HitBoxMap;
-
-	UFUNCTION(BlueprintCallable)
-	void RegisterHitBox(FHitBox HitBox);
-
-	UFUNCTION(BlueprintCallable)
-	void RegisterHitBoxes(TArray<FHitBox> HitBoxes);
+	UFUNCTION()
+	void RegisterActorAsHitbox();
 
 	UFUNCTION()
-	void OnHitBoxOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+	void OnHitBoxOverlap(AActor* OverlappedActor, AActor* OtherActor);
 		
 	UFUNCTION()
-	void OnHitBoxHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
+	void OnHitBoxHit(AActor* SelfActor, AActor* OtherActor, FVector NormalImpulse, const FHitResult& Hit);
 
-	void InflictDamage(UPrimitiveComponent* HitComponent, UPrimitiveComponent* OtherComp);
+	void InflictDamage(AActor* DamagedActor);
 };
