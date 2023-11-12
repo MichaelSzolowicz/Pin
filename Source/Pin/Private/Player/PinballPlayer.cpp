@@ -35,6 +35,10 @@ void APinballPlayer::BeginPlay()
 	NetworkPhysics->OnServerReceiveMove.BindUObject(this, &APinballPlayer::AddGrappleForce);
 
 	NetworkPhysics->SetUpdatedRotationComponent(RotationRoot);
+
+	ProjectileSpawnParams.Instigator = this;
+	ProjectileSpawnParams.Owner = this;
+	ProjectileSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 }
 
 
@@ -68,7 +72,7 @@ void APinballPlayer::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	if (Controller && Controller->IsLocalPlayerController()) {
+	if (IsValid(Controller) && Controller->IsLocalPlayerController()) {
 		OrientToFloor();
 	}
 }
@@ -128,14 +132,19 @@ void APinballPlayer::FireGrapple()
 {
 	UE_LOG(LogTemp, Warning, TEXT("Fire Grapple"));
 
-	AActor* NewProj = GetWorld()->SpawnActor<AActor>(GrappleProjectileClass, Reticle->GetComponentTransform());
-	GrappleProjectileComponent = NewProj->GetComponentByClass<UStickyProjectile>();
+	AActor* NewProj = GetWorld()->SpawnActor<AActor>(GrappleProjectileClass, Reticle->GetComponentTransform(), ProjectileSpawnParams);
 
-	GrappleProjectileComponent->OnAttached.Unbind();
-	GrappleProjectileComponent->OnAttached.BindUObject(this, &APinballPlayer::AddGrappleForce);
+	if (IsValid(NewProj)) {
+		GrappleProjectileComponent = NewProj->GetComponentByClass<UStickyProjectile>();
 
-	if (GetNetMode() == ENetMode::NM_Client) {
-		ServerFireGrapple(GetWorld()->TimeSeconds, Reticle->GetRelativeLocation());
+		if (IsValid(GrappleProjectileComponent)) {
+			GrappleProjectileComponent->OnAttached.Unbind();
+			GrappleProjectileComponent->OnAttached.BindUObject(this, &APinballPlayer::AddGrappleForce);
+		}
+
+		if (GetNetMode() == ENetMode::NM_Client) {
+			ServerFireGrapple(GetWorld()->TimeSeconds, Reticle->GetRelativeLocation());
+		}
 	}
 }
 
@@ -145,7 +154,7 @@ void APinballPlayer::FireGrapple()
 */
 void APinballPlayer::ReleaseGrapple()
 {
-	if (GrappleProjectileComponent && GrappleProjectileComponent->GetOwner()) {
+	if (IsValid(GrappleProjectileComponent) && GrappleProjectileComponent->GetOwner()) {
 		GrappleProjectileComponent->GetOwner()->Destroy();
 		GrappleProjectileComponent->DestroyComponent();
 
@@ -168,12 +177,15 @@ void APinballPlayer::ServerFireGrapple_Implementation(float Time, FVector LookAt
 	NetworkPhysics->EstimateMoveFromBuffer(SimulatedMove);
 
 	// Should clamp look at if it is greater than reticle radius.
-	AActor* NewProj = GetWorld()->SpawnActor<AActor>(GrappleProjectileClass, SimulatedMove.EndPosition + LookAt, LookAt.Rotation());
-	GrappleProjectileComponent = NewProj->GetComponentByClass<UStickyProjectile>();
+	AActor* NewProj = GetWorld()->SpawnActor<AActor>(GrappleProjectileClass, SimulatedMove.EndPosition + LookAt, LookAt.Rotation(), ProjectileSpawnParams);
+	if (IsValid(NewProj)) {
+		GrappleProjectileComponent = NewProj->GetComponentByClass<UStickyProjectile>();
 
-	if (GrappleProjectileComponent) {
-		GrappleProjectileComponent->UpdatePhysics(NetworkPhysics->MoveBufferLast().Time - SimulatedMove.Time);
+		if (IsValid(GrappleProjectileComponent)) {
+			GrappleProjectileComponent->UpdatePhysics(NetworkPhysics->MoveBufferLast().Time - SimulatedMove.Time);
+		}
 	}
+	
 }
 
 
@@ -182,7 +194,7 @@ void APinballPlayer::ServerFireGrapple_Implementation(float Time, FVector LookAt
 */
 void APinballPlayer::ServerReleaseGrapple_Implementation()
 {
-	if (GrappleProjectileComponent) {
+	if (IsValid(GrappleProjectileComponent)) {
 		GrappleProjectileComponent->GetOwner()->Destroy();
 		GrappleProjectileComponent->DestroyComponent();
 	}
@@ -196,7 +208,7 @@ void APinballPlayer::FireWeapon()
 {
 	UE_LOG(LogTemp, Warning, TEXT("Fire Weapon"));
 
-	GetWorld()->SpawnActor<AActor>(DefaultWeaponProjectile, Reticle->GetComponentTransform());
+	GetWorld()->SpawnActor<AActor>(DefaultWeaponProjectile, Reticle->GetComponentTransform(), ProjectileSpawnParams);
 
 	if (GetNetMode() == NM_Client) {
 		ServerFireWeapon(GetWorld()->TimeSeconds, Reticle->GetRelativeLocation());
@@ -227,11 +239,13 @@ void APinballPlayer::ServerFireWeapon_Implementation(float Time, FVector LookAt)
 	NetworkPhysics->EstimateMoveFromBuffer(SimulatedMove);
 
 	// Should clamp look at if it is greater than reticle radius.
-	AActor* NewProj = GetWorld()->SpawnActor<AActor>(DefaultWeaponProjectile, SimulatedMove.EndPosition + LookAt, LookAt.Rotation());
-	USimpleProjectile* SimpleProjectile = NewProj->GetComponentByClass<USimpleProjectile>();
+	AActor* NewProj = GetWorld()->SpawnActor<AActor>(DefaultWeaponProjectile, SimulatedMove.EndPosition + LookAt, LookAt.Rotation(), ProjectileSpawnParams);
+	if (IsValid(NewProj)) {
+		USimpleProjectile* SimpleProjectile = NewProj->GetComponentByClass<USimpleProjectile>();
 
-	if (SimpleProjectile) {
-		SimpleProjectile->UpdatePhysics(NetworkPhysics->MoveBufferLast().Time - SimulatedMove.Time);
+		if (IsValid(SimpleProjectile)) {
+			SimpleProjectile->UpdatePhysics(NetworkPhysics->MoveBufferLast().Time - SimulatedMove.Time);
+		}
 	}
 }
 

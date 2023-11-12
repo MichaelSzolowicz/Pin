@@ -21,3 +21,14 @@ FQuat UPawnUtilities::RotateToFloor(const USceneComponent* RootComponent, float 
 	
 	return Result;
 }
+
+bool UPawnUtilities::CollisionFilters(const AActor* ThisActor, const UPrimitiveComponent* OverlappedComponent, const AActor* OtherActor, const UPrimitiveComponent* OtherComponent, bool bIgnoreInstigator)
+{
+	if (!IsValid(ThisActor)) {
+		return false;
+	}
+	if (bIgnoreInstigator && IsValid(OtherActor) && OtherActor->GetInstigator<APawn>() == ThisActor->GetInstigator<APawn>()) {
+		return false;
+	}
+	return true;
+}

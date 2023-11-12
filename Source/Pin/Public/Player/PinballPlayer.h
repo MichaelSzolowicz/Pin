@@ -14,9 +14,6 @@ class PIN_API APinballPlayer : public APawn, public IBumperInterface
 	GENERATED_BODY()
 
 protected:
-	UPROPERTY(EditDefaultsOnly, Category = Test)
-		float Ping;
-
 	// Input
 	UPROPERTY(EditDefaultsOnly, Category = Input)
 		class UInputMappingContext* InputMapping;
@@ -52,6 +49,8 @@ protected:
 	// Weapon
 	UPROPERTY(EditDefaultsOnly, Category = Weapon)
 		TSubclassOf<AActor> DefaultWeaponProjectile;
+
+		FActorSpawnParameters ProjectileSpawnParams;
 
 public:
 	APinballPlayer();

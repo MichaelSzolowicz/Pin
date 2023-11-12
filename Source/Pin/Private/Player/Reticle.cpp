@@ -28,6 +28,11 @@ void UReticle::ClampPos()
 		Clamped *= MaxRadius;
 		Offset = Clamped;
 	}
+	else if (Clamped.Size() < MinRadius) {
+		Clamped.Normalize();
+		Clamped *= MinRadius;
+		Offset = -Clamped;
+	}
 }
 
 void UReticle::ConstrainToPlaneNormal()
