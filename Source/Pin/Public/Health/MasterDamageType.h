@@ -15,9 +15,6 @@ class PIN_API UMasterDamageType : public UDamageType
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditDefaultsOnly, Category = Damage)
-	float DefaultDamageValue = 1.0f;
-
 	UPROPERTY(EditDefaultsOnly, Category = Collisions)
 	bool bDamageOnHit = true;
 

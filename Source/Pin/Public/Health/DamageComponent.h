@@ -19,7 +19,6 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = Damage)
 	float ActorDamageValue = 1.0f;
 
-	// Sets default values for this component's properties
 	UDamageComponent();
 
 	UFUNCTION()

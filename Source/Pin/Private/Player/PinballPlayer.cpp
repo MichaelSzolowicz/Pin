@@ -10,7 +10,6 @@
 #include "Player/Reticle.h"
 #include "Projectiles/StickyProjectile.h"
 #include "PawnUtilities.h"
-#include "Health/HealthComponent.h"
 
 
 APinballPlayer::APinballPlayer()
@@ -18,8 +17,6 @@ APinballPlayer::APinballPlayer()
 	PrimaryActorTick.bCanEverTick = true;
 
 	NetworkPhysics = CreateDefaultSubobject<UNetworkedPhysics>(TEXT("NetworkPhysics"));
-
-	HealthComponent = CreateDefaultSubobject<UHealthComponent>(TEXT("HealthComponent"));
 
 	CapsuleComponent = CreateDefaultSubobject<UCapsuleComponent>(TEXT("CapsuleComponent"));
 	SetRootComponent(CapsuleComponent);

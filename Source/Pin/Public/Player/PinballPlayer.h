@@ -14,9 +14,6 @@ class PIN_API APinballPlayer : public APawn, public IBumperInterface
 	GENERATED_BODY()
 
 protected:
-	UPROPERTY(EditDefaultsOnly, Category = Test)
-		float Ping;
-
 	// Input
 	UPROPERTY(EditDefaultsOnly, Category = Input)
 		class UInputMappingContext* InputMapping;
@@ -27,10 +24,6 @@ protected:
 	// Physics
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Physics)
 		class UNetworkedPhysics* NetworkPhysics;
-
-	// Health
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Physics)
-		class UHealthComponent* HealthComponent;
 
 	// Scene components
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = CapsuleComponent)
