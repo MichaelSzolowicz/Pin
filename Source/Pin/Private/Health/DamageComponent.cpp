@@ -1,6 +1,6 @@
-#include "Health/HealthComponent.h"
-
 #include "Health/DamageComponent.h"
+
+#include "Health/HealthComponent.h"
 
 
 UDamageComponent::UDamageComponent()

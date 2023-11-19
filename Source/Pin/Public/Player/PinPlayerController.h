@@ -5,8 +5,6 @@
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
 
-#include "Player/PinPlayerPawn.h"
-
 #include "PinPlayerController.generated.h"
 
 /**
@@ -16,7 +14,5 @@ UCLASS()
 class PIN_API APinPlayerController : public APlayerController
 {
 	GENERATED_BODY()
-
-public:
 
 };
