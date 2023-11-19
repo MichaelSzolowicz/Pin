@@ -2,7 +2,6 @@
 
 #include "Kismet/GameplayStatics.h"
 #include "Player/PlayerStartContainer.h"
-#include "Player/PinPlayerPawn.h"
 #include "GameFramework/PlayerState.h"
 #include "GameFramework/GameStateBase.h"
 

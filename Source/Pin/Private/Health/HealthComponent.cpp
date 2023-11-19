@@ -1,7 +1,7 @@
+#include "Health/HealthComponent.h"
+
 #include "Engine/EngineTypes.h"
 #include "Net/UnrealNetwork.h"
-
-#include "Health/HealthComponent.h"
 
 // Sets default values for this component's properties
 UHealthComponent::UHealthComponent()
