@@ -123,6 +123,9 @@ public:
 	UFUNCTION(BlueprintCallable)
 	float GetSpeed() { return Velocity.Size(); }
 
+	UFUNCTION(BlueprintCallable)
+	float GetMass() { return Mass; }
+
 	FMove GetLastValidatedMove() { return LastValidatedMove; }
 
 	FVector GetLookAt() { return PendingLookAt; }

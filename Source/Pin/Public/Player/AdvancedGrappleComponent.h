@@ -5,7 +5,7 @@
 #include "AdvancedGrappleComponent.generated.h"
 
 
-UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
+UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable )
 class PIN_API UAdvancedGrappleComponent : public UActorComponent
 {
 	GENERATED_BODY()
@@ -18,6 +18,9 @@ protected:
 	float PullSpeed = 1.0f;
 
 	// Stretching will not be implemented for the first tests
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = GrappleCord)
+	bool bAllowSlack = false;
+
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = GrappleCord)
 	bool bCanStretch = false;
 
@@ -37,7 +40,7 @@ public:
 	void AttachTo(AActor* AttachToActor);
 
 	UFUNCTION()
-	FVector GrappleForc();
+	FVector GrappleForce(float DeltaTime);
 
 	// Getter / Setter
 	UFUNCTION(BlueprintCallable)
