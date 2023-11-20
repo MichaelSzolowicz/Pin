@@ -94,8 +94,9 @@ void UNetworkedPhysics::PerformMove(const FMove& Move)
 		SafeMoveUpdatedComponent(DeltaPos, UpdatedComponent->GetComponentRotation(), true, Hit);
 		// Handle overlaps
 		if (Hit.IsValidBlockingHit()) {
-			ResolveCollision(Hit);	// Normal impulse.
+			ResolveCollision(Hit, Move);	// Normal impulse.
 			SlideAlongSurface(DeltaPos, 1.f - Hit.Time, Hit.Normal, Hit);
+			//ApplyFriction(Move);
 		}
 	}
 
@@ -111,7 +112,7 @@ void UNetworkedPhysics::PerformMove(const FMove& Move)
 * Calculates the normal impulse.
 * @param Hit The hit struct we will find the normal impulse for.
 */
-void UNetworkedPhysics::ResolveCollision(const FHitResult& Hit)
+void UNetworkedPhysics::ResolveCollision(const FHitResult& Hit, const FMove& Move)
 {
 	// Assuming other actor is static. Later I will need to find a different way to reliably get ComponentVelocity from all types of actor.
 	FVector rv = -ComponentVelocity;
@@ -129,8 +130,24 @@ void UNetworkedPhysics::ResolveCollision(const FHitResult& Hit)
 	// Apply impulse
 	FVector Impulse = J * Hit.Normal;
 	ComponentVelocity -= InverseMass() * Impulse;
+
+	ApplyFriction(Hit, Move);
 }
 
+void UNetworkedPhysics::ApplyFriction(const FHitResult& Hit, const FMove& Move)
+{
+	FVector rv = -ComponentVelocity;
+	FVector Direction = -(rv - rv.Dot(Hit.Normal) * Hit.Normal);
+	Direction.Normalize();
+	float VelAlongTangent = FVector::DotProduct(rv, Direction);
+
+	if (FMath::Abs(VelAlongTangent) < .1f) {
+		return;
+	}
+
+	FVector Impulse = VelAlongTangent * Direction * -1;
+	ComponentVelocity -= InverseMass() * Impulse * FrictionConstant;
+}
 
 /**
 * RPC to execute and validate a move on the server.
