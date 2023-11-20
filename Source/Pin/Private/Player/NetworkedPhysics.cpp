@@ -94,7 +94,7 @@ void UNetworkedPhysics::PerformMove(const FMove& Move)
 		SafeMoveUpdatedComponent(DeltaPos, UpdatedComponent->GetComponentRotation(), true, Hit);
 		// Handle overlaps
 		if (Hit.IsValidBlockingHit()) {
-			ResolveCollision(Hit, Move);	// Normal impulse.
+			ResolveCollision(Hit);	// Normal impulse.
 			SlideAlongSurface(DeltaPos, 1.f - Hit.Time, Hit.Normal, Hit);
 			//ApplyFriction(Move);
 		}
@@ -112,7 +112,7 @@ void UNetworkedPhysics::PerformMove(const FMove& Move)
 * Calculates the normal impulse.
 * @param Hit The hit struct we will find the normal impulse for.
 */
-void UNetworkedPhysics::ResolveCollision(const FHitResult& Hit, const FMove& Move)
+void UNetworkedPhysics::ResolveCollision(const FHitResult& Hit)
 {
 	// Assuming other actor is static. Later I will need to find a different way to reliably get ComponentVelocity from all types of actor.
 	FVector rv = -ComponentVelocity;
@@ -131,10 +131,10 @@ void UNetworkedPhysics::ResolveCollision(const FHitResult& Hit, const FMove& Mov
 	FVector Impulse = J * Hit.Normal;
 	ComponentVelocity -= InverseMass() * Impulse;
 
-	ApplyFriction(Hit, Move);
+	ApplyFriction(Hit);
 }
 
-void UNetworkedPhysics::ApplyFriction(const FHitResult& Hit, const FMove& Move)
+void UNetworkedPhysics::ApplyFriction(const FHitResult& Hit)
 {
 	FVector rv = -ComponentVelocity;
 	FVector Direction = -(rv - rv.Dot(Hit.Normal) * Hit.Normal);

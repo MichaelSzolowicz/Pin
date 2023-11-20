@@ -160,9 +160,9 @@ protected:
 	* Calculates the normal impulse.
 	* @param Hit The hit struct we will find the normal impulse for.
 	*/
-	void ResolveCollision(const FHitResult& Hit, const FMove& Move);
+	void ResolveCollision(const FHitResult& Hit);
 
-	void ApplyFriction(const FHitResult& HIt, const FMove& Move);
+	void ApplyFriction(const FHitResult& Hit);
 
 	/**
 	* RPC to execute and validate a move on the server.
