@@ -68,7 +68,7 @@ protected:
 		float FrictionConstant = .6f;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Physics")
-		float restitution = 1.f;
+		float restitution = 0.f;
 
 	/**	Total force applied on physics update. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Physics")
@@ -77,7 +77,7 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Physics")
 		FVector LinearVelocity;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Physics")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics")
 		FVector AngularVelocity;
 
 	// Networking
@@ -174,6 +174,8 @@ protected:
 	* @param Hit The hit struct we will find the normal impulse for.
 	*/
 	void ResolveCollision(const FHitResult& Hit);
+
+	void ResolveCollisionWithRotation(const FHitResult& Hit);
 
 	void ApplyFriction(const FHitResult& Hit);
 

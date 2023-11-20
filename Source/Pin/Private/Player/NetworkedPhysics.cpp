@@ -96,7 +96,7 @@ void UNetworkedPhysics::PerformMove(const FMove& Move)
 		SafeMoveUpdatedComponent(DeltaPos, UpdatedComponent->GetComponentRotation(), true, Hit);
 		// Handle overlaps
 		if (Hit.IsValidBlockingHit()) {
-			ResolveCollision(Hit);	// Normal impulse.
+			ResolveCollisionWithRotation(Hit);	// Normal impulse.
 			SlideAlongSurface(DeltaPos, 1.f - Hit.Time, Hit.Normal, Hit);
 			//ApplyFriction(Move);
 		}
@@ -132,6 +132,42 @@ void UNetworkedPhysics::ResolveCollision(const FHitResult& Hit)
 	// Apply impulse
 	FVector Impulse = J * Hit.Normal;
 	LinearVelocity -= InverseMass() * Impulse;
+
+	ApplyFriction(Hit);
+}
+
+void UNetworkedPhysics::ResolveCollisionWithRotation(const FHitResult& Hit)
+{
+	USphereComponent* Sphere = Cast<USphereComponent>(UpdatedComponent);
+	if (!Sphere) {
+		//GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Red, TEXT("Updated component is not sphere component."));
+	}
+
+	FVector RVector = Hit.ImpactPoint - UpdatedComponent->GetComponentLocation();
+
+	FVector RelativeVelocity = -(LinearVelocity + AngularVelocity);
+
+	float VelocityAlongNormal = RelativeVelocity.Dot(Hit.Normal);
+
+	if (VelocityAlongNormal < 0) {
+		return;
+	}
+
+	float OtherBodyInverseMass = 0;
+	float AngularVelocityDotNormal = AngularVelocity.Dot(Hit.Normal);
+	float OtherAngularVelocityDotNormal = 0;
+
+	float Restitution = FMath::Min(restitution, .0f);	/** Need a reliable way to get the restitution for other objects. **/
+	float Impulse = -(1 + Restitution) * VelocityAlongNormal;
+	Impulse /= (InverseMass() + OtherBodyInverseMass) + 
+		FMath::Square(AngularVelocityDotNormal) * InverseMass() +
+		FMath::Square(OtherAngularVelocityDotNormal) * OtherBodyInverseMass;
+
+	LinearVelocity -= InverseMass() * (Impulse * Hit.Normal);
+	AngularVelocity -= (Impulse * Hit.Normal).Cross(RVector) * InverseInertia();
+
+	DrawDebugLine(GetWorld(), Hit.ImpactPoint, Hit.ImpactPoint - (Impulse * Hit.Normal).Cross(RVector) * InverseInertia(), FColor::Purple, false, 1.0f);
+	DrawDebugLine(GetWorld(), Hit.ImpactPoint, Hit.ImpactPoint - InverseMass() * (Impulse * Hit.Normal), FColor::Green, false, 1.0f);
 
 	ApplyFriction(Hit);
 }

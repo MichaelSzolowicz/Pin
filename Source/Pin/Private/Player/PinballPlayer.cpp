@@ -6,7 +6,7 @@
 #include "Player/DefaultPlayerInputConfig.h"
 #include "Player/AdvancedGrappleComponent.h"
 
-#include "Components/CapsuleComponent.h"
+#include "Components/SphereComponent.h"
 #include "Player/NetworkedPhysics.h"
 #include "Player/Reticle.h"
 #include "Projectiles/StickyProjectile.h"
@@ -19,8 +19,8 @@ APinballPlayer::APinballPlayer()
 
 	NetworkPhysics = CreateDefaultSubobject<UNetworkedPhysics>(TEXT("NetworkPhysics"));
 
-	CapsuleComponent = CreateDefaultSubobject<UCapsuleComponent>(TEXT("CapsuleComponent"));
-	SetRootComponent(CapsuleComponent);
+	SphereComponent = CreateDefaultSubobject<USphereComponent>(TEXT("SphereComponent"));
+	SetRootComponent(SphereComponent);
 
 	RotationRoot = CreateDefaultSubobject<USceneComponent>(TEXT("RotationRoot"));
 	RotationRoot->SetupAttachment(RootComponent);

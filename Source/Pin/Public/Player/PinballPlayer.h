@@ -26,8 +26,8 @@ protected:
 		class UNetworkedPhysics* NetworkPhysics;
 
 	// Scene components
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = CapsuleComponent)
-		class UCapsuleComponent* CapsuleComponent;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = SphereComponent)
+		class USphereComponent* SphereComponent;
 
 	/** Seperates the player's look direction from physics. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = RotationRoot)
