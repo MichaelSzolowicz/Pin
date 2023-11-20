@@ -52,11 +52,17 @@ protected:
 
 	/** Update this component's rotation if bShouldUpdateRotation is true. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Rotation")
-		USceneComponent* UpdatedRotationComponent;
+		USceneComponent* OrientationRoot;
 
 	// Physics
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "PhysicsBody")
+		class USphereComponent* AngularBody;
+
 	UPROPERTY(EditDefaultsOnly, Category = "Physics")
 		float Mass = 100.f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Physics")
+		float Inertia;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Physics")
 		float FrictionConstant = .6f;
@@ -68,14 +74,11 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Physics")
 		FVector AccumulatedForce;
 
-	/**	DEPRECATED
-	*	Forces that should be calculated server side.These forces are usually calculated at the start of PerformMove(), after all other relavant forces have been resolved.
-	*/
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Physics")
-		FVector NaturalForce;
+		FVector LinearVelocity;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Physics")
-		FVector ComponentVelocity;
+		FVector AngularVelocity;
 
 	// Networking
 	TArray<FMove> MovesBuffer;
@@ -99,7 +102,7 @@ public:
 
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
-	void SetUpdatedRotationComponent(USceneComponent* Component);
+	void SetOrientationRoot(USceneComponent* Component);
 
 	/**
 	* Submit a 2d input vector to be processed next tick. 
@@ -119,15 +122,23 @@ public:
 	void AddForce(FVector Force);
 
 	// Getter functions.
+	UFUNCTION(BlueprintCallable)
+	float GetMass() { return Mass; }
 
 	UFUNCTION(BlueprintCallable)
 	float InverseMass() { return 1 / Mass; }
 
 	UFUNCTION(BlueprintCallable)
-	float GetSpeed() { return Velocity.Size(); }
+	float GetInertia() { return Inertia; }
 
 	UFUNCTION(BlueprintCallable)
-	float GetMass() { return Mass; }
+	float InverseInertia() { 
+		if (Inertia <= 0) return 0;
+		else return 1 / Inertia;
+	}
+
+	UFUNCTION(BlueprintCallable)
+	float GetSpeed() { return Velocity.Size(); }
 
 	FMove GetLastValidatedMove() { return LastValidatedMove; }
 
@@ -138,6 +149,8 @@ public:
 	void EstimateMoveFromBuffer(FMove& Move);
 
 protected:
+	void CalcIntertia();
+
 	/**
 	* Apply Accumulated Force as movement. Save the resulting move and send it to the server.
 	* @param DeltaTime

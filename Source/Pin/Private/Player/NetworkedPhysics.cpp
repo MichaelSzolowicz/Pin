@@ -1,5 +1,7 @@
 #include "Player/NetworkedPhysics.h"
 
+#include "Components/SphereComponent.h"
+
 #include "DrawDebugHelpers.h"
 
 
@@ -7,10 +9,10 @@ void UNetworkedPhysics::BeginPlay()
 {
 	Super::BeginPlay();
 
-	ComponentVelocity = FVector::Zero();
-	PendingInput = FVector2D::Zero();
+	CalcIntertia();
 
-	//UpdatedRotationComponent = UpdatedComponent;
+	LinearVelocity = FVector::Zero();
+	PendingInput = FVector2D::Zero();
 }
 
 
@@ -49,7 +51,7 @@ void UNetworkedPhysics::UpdatePhysics(float DeltaTime)
 	PerformMove(Move);
 
 	Move.EndPosition = UpdatedComponent->GetComponentLocation();
-	Move.EndVelocity = ComponentVelocity;
+	Move.EndVelocity = LinearVelocity;
 	MovesBuffer.Add(Move);
 
 	//Execute move on server
@@ -88,7 +90,7 @@ void UNetworkedPhysics::PerformMove(const FMove& Move)
 	for (int i = 0; i < 3; i++) {
 		FVector Mask = FVector(0,0,0);
 		Mask[i]++;
-		FVector DeltaPos = ComponentVelocity * dt * Mask;
+		FVector DeltaPos = LinearVelocity * dt * Mask;
 		// Update position
 		FHitResult Hit;
 		SafeMoveUpdatedComponent(DeltaPos, UpdatedComponent->GetComponentRotation(), true, Hit);
@@ -100,7 +102,7 @@ void UNetworkedPhysics::PerformMove(const FMove& Move)
 		}
 	}
 
-	ComponentVelocity += (Move.Force / Mass) * dt;
+	LinearVelocity += (Move.Force / Mass) * dt;
 
 	if (bShouldUpdateRotation) {
 		ApplyLookAtRotation();
@@ -114,8 +116,8 @@ void UNetworkedPhysics::PerformMove(const FMove& Move)
 */
 void UNetworkedPhysics::ResolveCollision(const FHitResult& Hit)
 {
-	// Assuming other actor is static. Later I will need to find a different way to reliably get ComponentVelocity from all types of actor.
-	FVector rv = -ComponentVelocity;
+	// Assuming other actor is static. Later I will need to find a different way to reliably get LinearVelocity from all types of actor.
+	FVector rv = -LinearVelocity;
 
 	float velAlongNormal = FVector::DotProduct(rv, Hit.Normal);
 
@@ -129,14 +131,14 @@ void UNetworkedPhysics::ResolveCollision(const FHitResult& Hit)
 
 	// Apply impulse
 	FVector Impulse = J * Hit.Normal;
-	ComponentVelocity -= InverseMass() * Impulse;
+	LinearVelocity -= InverseMass() * Impulse;
 
 	ApplyFriction(Hit);
 }
 
 void UNetworkedPhysics::ApplyFriction(const FHitResult& Hit)
 {
-	FVector rv = -ComponentVelocity;
+	FVector rv = -LinearVelocity;
 	FVector Direction = -(rv - rv.Dot(Hit.Normal) * Hit.Normal);
 	Direction.Normalize();
 	float VelAlongTangent = FVector::DotProduct(rv, Direction);
@@ -146,7 +148,7 @@ void UNetworkedPhysics::ApplyFriction(const FHitResult& Hit)
 	}
 
 	FVector Impulse = VelAlongTangent * Direction * -1;
-	ComponentVelocity -= InverseMass() * Impulse * FrictionConstant;
+	LinearVelocity -= InverseMass() * Impulse * FrictionConstant;
 }
 
 /**
@@ -219,7 +221,7 @@ void UNetworkedPhysics::CheckCompletedMove(const FMove& Move)
 	}
 
 	if (correction) {
-		ClientCorrection(UpdatedComponent->GetComponentLocation(), ComponentVelocity, Move.Time);
+		ClientCorrection(UpdatedComponent->GetComponentLocation(), LinearVelocity, Move.Time);
 	}
 	else {
 		ClientApproveMove(Move.Time);
@@ -238,7 +240,7 @@ void UNetworkedPhysics::CheckCompletedMove(const FMove& Move)
 */
 void UNetworkedPhysics::ClientCorrection_Implementation(FVector EndPosition, FVector EndVelocity, float Time) {
 	UpdatedComponent->SetWorldLocation(EndPosition);
-	ComponentVelocity = EndVelocity;
+	LinearVelocity = EndVelocity;
 	
 	// prolly can change this to a call to clientapprovemove.
 	int Num = MovesBuffer.Num();
@@ -303,14 +305,22 @@ void UNetworkedPhysics::EstimateMoveFromBuffer(FMove& Move)
 	}
 }
 
+void UNetworkedPhysics::CalcIntertia()
+{
+	USphereComponent* Sphere = Cast<USphereComponent>(UpdatedComponent);
+	if (!Sphere) return;
+
+	Inertia = (2.f / 5.f) * Mass * Sphere->GetScaledSphereRadius();
+}
+
 
 /**
 * Set the component this can update the rotation of.
 * @param Component
 */
-void UNetworkedPhysics::SetUpdatedRotationComponent(USceneComponent* Component)
+void UNetworkedPhysics::SetOrientationRoot(USceneComponent* Component)
 {
-	UpdatedRotationComponent = Component;
+	OrientationRoot = Component;
 }
 
 
@@ -339,7 +349,7 @@ void UNetworkedPhysics::SetLookAtRotation(FVector LookAt)
 */
 void UNetworkedPhysics::AddImpulse(FVector Impulse)
 {
-	ComponentVelocity += InverseMass() * Impulse;
+	LinearVelocity += InverseMass() * Impulse;
 }
 
 
@@ -371,9 +381,9 @@ void UNetworkedPhysics::ApplyInput()
 void UNetworkedPhysics::ApplyLookAtRotation()
 {
 	UE_LOG(LogTemp, Warning, TEXT("Apply rotation"));
-	if (UpdatedRotationComponent) {
-		FQuat DeltaRotation = UpdatedRotationComponent->GetForwardVector().ToOrientationQuat().Inverse() * PendingLookAt.ToOrientationQuat();
-		UpdatedRotationComponent->AddWorldRotation(DeltaRotation);
+	if (OrientationRoot) {
+		FQuat DeltaRotation = OrientationRoot->GetForwardVector().ToOrientationQuat().Inverse() * PendingLookAt.ToOrientationQuat();
+		OrientationRoot->AddWorldRotation(DeltaRotation);
 	}
 }
 

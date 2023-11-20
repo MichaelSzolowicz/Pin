@@ -35,7 +35,7 @@ void APinballPlayer::BeginPlay()
 
 	NetworkPhysics->OnServerReceiveMove.BindUObject(this, &APinballPlayer::AddGrappleForce);
 
-	NetworkPhysics->SetUpdatedRotationComponent(RotationRoot);
+	NetworkPhysics->SetOrientationRoot(RotationRoot);
 
 	ProjectileSpawnParams.Instigator = this;
 	ProjectileSpawnParams.Owner = this;
