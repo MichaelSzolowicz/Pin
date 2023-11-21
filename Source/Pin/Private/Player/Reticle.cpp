@@ -8,7 +8,7 @@
 */
 FVector UReticle::AddInput(FVector2D Input)
 {
-	Offset += FVector(Input, 0.f);
+	Offset += FVector(Input, 0.f) * Sensitivity;
 
 	SetRelativeLocation(Offset);
 
