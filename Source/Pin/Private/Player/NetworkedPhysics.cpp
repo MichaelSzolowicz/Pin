@@ -1,6 +1,7 @@
 #include "Player/NetworkedPhysics.h"
 
 #include "Components/SphereComponent.h"
+#include "Kismet/KismetMathLibrary.h"
 
 #include "DrawDebugHelpers.h"
 
@@ -133,58 +134,63 @@ void UNetworkedPhysics::ResolveCollision(const FHitResult& Hit)
 	FVector Impulse = J * Hit.Normal;
 	LinearVelocity -= InverseMass() * Impulse;
 
-	ApplyFriction(Hit);
+	//ApplyFriction(Hit);
 }
 
-void UNetworkedPhysics::ResolveCollisionWithRotation(const FHitResult& Hit)
+void UNetworkedPhysics::ResolveCollisionWithRotation(const FHitResult& Hit) 
 {
-	USphereComponent* Sphere = Cast<USphereComponent>(UpdatedComponent);
-	if (!Sphere) {
-		//GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Red, TEXT("Updated component is not sphere component."));
-	}
-
 	FVector RVector = Hit.ImpactPoint - UpdatedComponent->GetComponentLocation();
 
-	FVector RelativeVelocity = -(LinearVelocity + AngularVelocity);
+	FVector Vel = LinearVelocity + AngularVelocity.Cross(RVector);
 
-	float VelocityAlongNormal = RelativeVelocity.Dot(Hit.Normal);
+	float J = Vel.Dot(Hit.Normal) * -(1 + FMath::Min(restitution, .0f));
 
-	if (VelocityAlongNormal < 0) {
-		return;
-	}
+	J /= InverseMass() + 
+		FVector::DotProduct(FVector::CrossProduct(InverseInertia() * 
+			FVector::CrossProduct(RVector, Hit.Normal), RVector),
+			Hit.Normal);
 
-	float OtherBodyInverseMass = 0;
-	float AngularVelocityDotNormal = AngularVelocity.Dot(Hit.Normal);
-	float OtherAngularVelocityDotNormal = 0;
+	FVector Impulse = J * Hit.Normal;
 
-	float Restitution = FMath::Min(restitution, .0f);	/** Need a reliable way to get the restitution for other objects. **/
-	float Impulse = -(1 + Restitution) * VelocityAlongNormal;
-	Impulse /= (InverseMass() + OtherBodyInverseMass) + 
-		FMath::Square(AngularVelocityDotNormal) * InverseMass() +
-		FMath::Square(OtherAngularVelocityDotNormal) * OtherBodyInverseMass;
+	LinearVelocity += InverseMass() * Impulse;
+	AngularVelocity += InverseInertia() * RVector.Cross(Impulse);
 
-	LinearVelocity -= InverseMass() * (Impulse * Hit.Normal);
-	AngularVelocity -= (Impulse * Hit.Normal).Cross(RVector) * InverseInertia();
-
-	DrawDebugLine(GetWorld(), Hit.ImpactPoint, Hit.ImpactPoint - (Impulse * Hit.Normal).Cross(RVector) * InverseInertia(), FColor::Purple, false, 1.0f);
-	DrawDebugLine(GetWorld(), Hit.ImpactPoint, Hit.ImpactPoint - InverseMass() * (Impulse * Hit.Normal), FColor::Green, false, 1.0f);
-
-	ApplyFriction(Hit);
+	ApplyFriction(Hit, Impulse);
 }
 
-void UNetworkedPhysics::ApplyFriction(const FHitResult& Hit)
+void UNetworkedPhysics::ApplyFriction(const FHitResult& Hit, const FVector& NormalForce)
 {
-	FVector rv = -LinearVelocity;
-	FVector Direction = -(rv - rv.Dot(Hit.Normal) * Hit.Normal);
-	Direction.Normalize();
-	float VelAlongTangent = FVector::DotProduct(rv, Direction);
+	FVector RVector = Hit.ImpactPoint - UpdatedComponent->GetComponentLocation();
 
-	if (FMath::Abs(VelAlongTangent) < .1f) {
-		return;
+	
+	FVector Tangent = LinearVelocity - LinearVelocity.Dot(Hit.Normal) * Hit.Normal;
+	Tangent.Normalize();
+
+	FVector Vel = LinearVelocity + AngularVelocity.Cross(RVector);
+
+	float J = Vel.Dot(Tangent) * -(1);
+
+	J /= InverseMass() +
+		FVector::DotProduct(FVector::CrossProduct(InverseInertia() *
+			RVector.Cross(Tangent), RVector),
+			Tangent);
+
+	if (FMath::Abs(J) > NormalForce.Size() * FrictionConstant) {
+		J = NormalForce.Size() * (J / FMath::Abs(J)) * FrictionConstant;
+	}
+	else {
+		J *= FrictionConstant;
 	}
 
-	FVector Impulse = VelAlongTangent * Direction * -1;
-	LinearVelocity -= InverseMass() * Impulse * FrictionConstant;
+	FVector Impulse = J * Tangent;
+
+	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Cyan, FString::Printf(TEXT("Impulse J: %f"), J));
+
+	LinearVelocity += InverseMass() * Impulse;
+	AngularVelocity = InverseInertia() * RVector.Cross(Impulse);
+
+	FRotator Rot = UKismetMathLibrary::RotatorFromAxisAndAngle(AngularVelocity.GetSafeNormal(), AngularVelocity.Size());
+	AngularBody->AddWorldRotation(Rot);
 }
 
 /**

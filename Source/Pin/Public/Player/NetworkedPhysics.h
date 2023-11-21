@@ -56,7 +56,7 @@ protected:
 
 	// Physics
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "PhysicsBody")
-		class USphereComponent* AngularBody;
+		class USceneComponent* AngularBody;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Physics")
 		float Mass = 100.f;
@@ -79,6 +79,9 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics")
 		FVector AngularVelocity;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics")
+		FVector AxisOfRotation;
 
 	// Networking
 	TArray<FMove> MovesBuffer;
@@ -148,6 +151,9 @@ public:
 
 	void EstimateMoveFromBuffer(FMove& Move);
 
+	UFUNCTION(BlueprintCallable)
+	void SetAngularBody(USceneComponent* Component) { AngularBody = Component; }
+
 protected:
 	void CalcIntertia();
 
@@ -177,7 +183,7 @@ protected:
 
 	void ResolveCollisionWithRotation(const FHitResult& Hit);
 
-	void ApplyFriction(const FHitResult& Hit);
+	void ApplyFriction(const FHitResult& Hit, const FVector& NormalForce);
 
 	/**
 	* RPC to execute and validate a move on the server.
