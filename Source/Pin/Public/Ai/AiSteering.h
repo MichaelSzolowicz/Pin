@@ -11,7 +11,7 @@ class PIN_API UAiSteering : public UActorComponent
 	GENERATED_BODY()
 
 public:	
-	/** Used to trace for level geometry surround the ai. */
+	/** Used to trace for level geometry surrounding the ai. */
 	const TArray<FVector> Compass = { {1.f,0.f,0.f}, {.707,-.707f,0.f}, {0.f,-1.f,0.f}, {-.707f,-.707f,0.f}, {-1.f,0.f,0.f}, {-.707f,.707f,0.f}, {0.f,1.f,0.f}, {.707f,.707f,0.f} };
 
 	/** Ai can see pawns within this radius. */
@@ -55,7 +55,7 @@ protected:
 	* @param OutVector
 	*/
 	UFUNCTION()
-	void CalcDangerVector(FVector& OutVector);
+	FVector CalcDangerVector();
 
 	/**
 	* Calculate a danger vector for an array of hits.

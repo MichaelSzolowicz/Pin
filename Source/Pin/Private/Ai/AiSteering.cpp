@@ -24,8 +24,7 @@ void UAiSteering::BeginPlay()
 FVector UAiSteering::GetInput()
 {
 	FVector Input = FVector::Zero();
-	CalcDangerVector(Input);	// Right now the ai only evades, but this is structured in a way to easily support chase behavior if I want it later on.
-	Input *= -1;
+	Input = CalcDangerVector() * -1;	// Right now the ai only evades, but this is structured in a way to easily support chase behavior if I want it later on.
 
 	/*TESTONLY*/
 	UKismetSystemLibrary::DrawDebugArrow(GetWorld(), GetOwner()->GetActorLocation(), GetOwner()->GetActorLocation() + Input, 5.0f, FLinearColor::Blue);
@@ -43,8 +42,9 @@ FVector UAiSteering::GetInput()
 * Caculates a vector representing the least desirable direction for the ai to move in.
 * @param OutVector
 */
-void UAiSteering::CalcDangerVector(FVector& OutVector)
+FVector UAiSteering::CalcDangerVector()
 {
+	FVector OutVector = FVector::Zero();
 	TArray<FHitResult> OutHits;
 
 	CompassTrace(OutHits, EnvironmentChannel, EnvironmentDetectionRadius);
@@ -62,6 +62,7 @@ void UAiSteering::CalcDangerVector(FVector& OutVector)
 	}
 	/*ENDTEST*/
 
+	return OutVector;
 }
 
 /**

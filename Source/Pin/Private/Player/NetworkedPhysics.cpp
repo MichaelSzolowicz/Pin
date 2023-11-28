@@ -161,7 +161,6 @@ void UNetworkedPhysics::ResolveCollisionWithRotation(const FHitResult& Hit)
 void UNetworkedPhysics::ApplyFriction(const FHitResult& Hit, const FVector& NormalForce)
 {
 	FVector RVector = Hit.ImpactPoint - UpdatedComponent->GetComponentLocation();
-
 	
 	FVector Tangent = LinearVelocity - LinearVelocity.Dot(Hit.Normal) * Hit.Normal;
 	Tangent.Normalize();
@@ -183,8 +182,6 @@ void UNetworkedPhysics::ApplyFriction(const FHitResult& Hit, const FVector& Norm
 	}
 
 	FVector Impulse = J * Tangent;
-
-	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Cyan, FString::Printf(TEXT("Impulse J: %f"), J));
 
 	LinearVelocity += InverseMass() * Impulse;
 	AngularVelocity = InverseInertia() * RVector.Cross(Impulse);
