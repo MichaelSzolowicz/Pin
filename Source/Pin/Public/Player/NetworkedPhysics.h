@@ -43,32 +43,35 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 		float InputStrength = 60000.f;
 
-	//Rotation
+	//Orientation
 	FVector PendingLookAt;
 
 	/** Send Look At rotation to server if true. */
 	UPROPERTY(EditDefaultsOnly, Category = "Rotation")
-		bool bShouldUpdateRotation = false;
+		bool bShouldUpdateOrientation = false;
 
-	/** Update this component's rotation if bShouldUpdateRotation is true. */
+	/** Update this component's rotation if bShouldUpdateOrientation is true. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Rotation")
 		USceneComponent* OrientationRoot;
 
 	// Physics
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "PhysicsBody")
-		class USceneComponent* AngularBody;
-
 	UPROPERTY(EditDefaultsOnly, Category = "Physics")
 		float Mass = 100.f;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Physics")
-		float Inertia;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Physics")
 		float FrictionConstant = .6f;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Physics")
 		float restitution = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics")
+		bool bUseAngularMovement = true;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Physics")
+		class USceneComponent* AngularBody;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Physics")
+		float Inertia;
 
 	/**	Total force applied on physics update. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Physics")
@@ -77,10 +80,10 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Physics")
 		FVector LinearVelocity;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Physics")
 		FVector AngularVelocity;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Physics")
 		FVector AxisOfRotation;
 
 	// Networking
@@ -116,7 +119,7 @@ public:
 	void SetInput(FVector2D Input);
 
 	UFUNCTION(BlueprintCallable)
-	void SetLookAtRotation(FVector LookAt);
+	void SetLookAtOrientation(FVector LookAt);
 
 	UFUNCTION(BlueprintCallable)
 	void AddImpulse(FVector Impulse);
@@ -176,13 +179,17 @@ protected:
 	virtual void PerformMove(const FMove& Move);
 
 	/**
-	* Calculates the normal impulse.
-	* @param Hit The hit struct we will find the normal impulse for.
+	* Applies normal impulse then calls apply friction.
+	* Currently assumes the other object is static and has infinite mass.
+	* @param Hit The hit structure to resolve for.
 	*/
-	void ResolveCollision(const FHitResult& Hit);
-
 	void ResolveCollisionWithRotation(const FHitResult& Hit);
 
+	/**
+	* Applies friction impulse.
+	* Currently assumes the other object is static and has infinite mass.
+	* @param Hit the hit structre to apply friction for.
+	*/
 	void ApplyFriction(const FHitResult& Hit, const FVector& NormalForce);
 
 	/**
@@ -224,6 +231,10 @@ protected:
 	void ClientCorrection(FVector EndPosition, FVector EndVelocity, float Time);
 	virtual void ClientCorrection_Implementation(FVector EndPosition, FVector EndVelocity, float Time);
 
+	UFUNCTION(Client, Reliable)
+	void ClientCorrectionWithAngularVelocity(FVector EndPosition, FVector EndLinearVelocity, FVector EndAngularVelocity, float Time);
+	virtual void ClientCorrectionWithAngularVelocity_Implementation(FVector EndPosition, FVector EndLinearVelocity, FVector EndAngularVelocity, float Time);
+
 	/**
 	* Client RPC for receiving move approvals.
 	* @param Timestamp The timestamp of the approved move.
@@ -234,7 +245,7 @@ protected:
 
 	void ApplyInput();
 
-	void ApplyLookAtRotation();
+	void ApplyLookAtOrientation();
 
 	FVector ConsumeAccumulatedForce();
 

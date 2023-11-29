@@ -31,7 +31,7 @@ void ASteeringEnemy::Move()
 	FVector Input = Steering->GetInput();
 	Input.Normalize();	// Should change steering comp do it doesn't multiply input by a speed.
 
-	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, FString::Printf(TEXT("Enemy move: %s"), *Input.ToString()));
+	//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, FString::Printf(TEXT("Enemy move: %s"), *Input.ToString()));
 
 	Physics->AddForce(100.0f * BaseAcceleration * Input);
 }

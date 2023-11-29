@@ -33,7 +33,7 @@ void UNetworkedPhysics::TickComponent(float DeltaTime, enum ELevelTick TickType,
 void UNetworkedPhysics::UpdatePhysics(float DeltaTime)
 {
 	APawn* Pawn = (APawn*)GetOwner();
-	if (!(Pawn && Pawn->Controller && Pawn->Controller->IsLocalPlayerController())) {
+	if (!IsValid(Pawn) || !Pawn->IsLocallyControlled()) {
 		return;
 	}
 
@@ -57,7 +57,7 @@ void UNetworkedPhysics::UpdatePhysics(float DeltaTime)
 
 	//Execute move on server
 	if (GetNetMode() == NM_Client) {
-		if (bShouldUpdateRotation) {
+		if (bShouldUpdateOrientation) {
 			ServerPerformMoveWithRotation(InputCopy, Move.Time, Move.EndPosition, PendingLookAt);
 		}
 		else {
@@ -105,38 +105,16 @@ void UNetworkedPhysics::PerformMove(const FMove& Move)
 
 	LinearVelocity += (Move.Force / Mass) * dt;
 
-	if (bShouldUpdateRotation) {
-		ApplyLookAtRotation();
+	if (bShouldUpdateOrientation) {
+		ApplyLookAtOrientation();
 	}
 }
 
-
 /**
-* Calculates the normal impulse.
-* @param Hit The hit struct we will find the normal impulse for.
+* Applies normal impulse then calls apply friction.
+* Currently assumes the other object is static and has infinite mass.
+* @param Hit The hit structure to resolve for.
 */
-void UNetworkedPhysics::ResolveCollision(const FHitResult& Hit)
-{
-	// Assuming other actor is static. Later I will need to find a different way to reliably get LinearVelocity from all types of actor.
-	FVector rv = -LinearVelocity;
-
-	float velAlongNormal = FVector::DotProduct(rv, Hit.Normal);
-
-	if (velAlongNormal < 0) return;
-
-	float e = FMath::Min(restitution, .0f);	/** Need a reliable way to get the restitution for other objects. **/
-
-	// actual impulse.
-	float J = -(1 + e) * velAlongNormal;
-	J /= InverseMass() + 0;	/* Need a reliable way to get the inverse mass for other objects. */
-
-	// Apply impulse
-	FVector Impulse = J * Hit.Normal;
-	LinearVelocity -= InverseMass() * Impulse;
-
-	//ApplyFriction(Hit);
-}
-
 void UNetworkedPhysics::ResolveCollisionWithRotation(const FHitResult& Hit) 
 {
 	FVector RVector = Hit.ImpactPoint - UpdatedComponent->GetComponentLocation();
@@ -153,11 +131,19 @@ void UNetworkedPhysics::ResolveCollisionWithRotation(const FHitResult& Hit)
 	FVector Impulse = J * Hit.Normal;
 
 	LinearVelocity += InverseMass() * Impulse;
-	AngularVelocity += InverseInertia() * RVector.Cross(Impulse);
+
+	if (bUseAngularMovement) {
+		AngularVelocity += InverseInertia() * RVector.Cross(Impulse);
+	}
 
 	ApplyFriction(Hit, Impulse);
 }
 
+/**
+* Applies friction impulse.
+* Currently assumes the other object is static and has infinite mass.
+* @param Hit the hit structre to apply friction for.
+*/
 void UNetworkedPhysics::ApplyFriction(const FHitResult& Hit, const FVector& NormalForce)
 {
 	FVector RVector = Hit.ImpactPoint - UpdatedComponent->GetComponentLocation();
@@ -184,10 +170,15 @@ void UNetworkedPhysics::ApplyFriction(const FHitResult& Hit, const FVector& Norm
 	FVector Impulse = J * Tangent;
 
 	LinearVelocity += InverseMass() * Impulse;
-	AngularVelocity = InverseInertia() * RVector.Cross(Impulse);
 
-	FRotator Rot = UKismetMathLibrary::RotatorFromAxisAndAngle(AngularVelocity.GetSafeNormal(), AngularVelocity.Size());
-	AngularBody->AddWorldRotation(Rot);
+	if (bUseAngularMovement) {
+		AngularVelocity = InverseInertia() * RVector.Cross(Impulse);
+
+		if (IsValid(AngularBody)) {
+			FRotator Rot = UKismetMathLibrary::RotatorFromAxisAndAngle(AngularVelocity.GetSafeNormal(), AngularVelocity.Size());
+			AngularBody->AddWorldRotation(Rot);
+		}
+	}
 }
 
 /**
@@ -228,7 +219,7 @@ void UNetworkedPhysics::ServerPerformMove_Implementation(FVector2D Input, float 
 */
 void UNetworkedPhysics::ServerPerformMoveWithRotation_Implementation(FVector2D Input, float Time, FVector EndPosition, FVector LookAt)
 {
-	SetLookAtRotation(LookAt);
+	SetLookAtOrientation(LookAt);
 
 	ServerPerformMove(Input, Time, EndPosition);
 }
@@ -260,7 +251,12 @@ void UNetworkedPhysics::CheckCompletedMove(const FMove& Move)
 	}
 
 	if (correction) {
-		ClientCorrection(UpdatedComponent->GetComponentLocation(), LinearVelocity, Move.Time);
+		if (bUseAngularMovement) {
+			ClientCorrectionWithAngularVelocity(UpdatedComponent->GetComponentLocation(), LinearVelocity, AngularVelocity, Move.Time);
+		} 
+		else {
+			ClientCorrection(UpdatedComponent->GetComponentLocation(), LinearVelocity, Move.Time);
+		}
 	}
 	else {
 		ClientApproveMove(Move.Time);
@@ -307,6 +303,12 @@ void UNetworkedPhysics::ClientCorrection_Implementation(FVector EndPosition, FVe
 	LastValidatedMove = Move;
 }
 
+void UNetworkedPhysics::ClientCorrectionWithAngularVelocity_Implementation(FVector EndPosition, FVector EndLinearVelocity, FVector EndAngularVelocity, float Time)
+{
+	AngularVelocity = EndAngularVelocity;
+	ClientCorrection(EndPosition, EndLinearVelocity, Time);
+}
+
 
 /**
 * Client RPC for receiving move approvals.
@@ -347,7 +349,11 @@ void UNetworkedPhysics::EstimateMoveFromBuffer(FMove& Move)
 void UNetworkedPhysics::CalcIntertia()
 {
 	USphereComponent* Sphere = Cast<USphereComponent>(UpdatedComponent);
-	if (!Sphere) return;
+	if (!Sphere) {
+		bUseAngularMovement = false;
+		Inertia = 0;
+		return;
+	}
 
 	Inertia = (2.f / 5.f) * Mass * Sphere->GetScaledSphereRadius();
 }
@@ -377,7 +383,7 @@ void UNetworkedPhysics::SetInput(FVector2D Input)
 * Sets the value of Pending Look At.
 * @param LookAt New Pending Look At.
 */
-void UNetworkedPhysics::SetLookAtRotation(FVector LookAt)
+void UNetworkedPhysics::SetLookAtOrientation(FVector LookAt)
 {
 	PendingLookAt = LookAt;
 }
@@ -417,7 +423,7 @@ void UNetworkedPhysics::ApplyInput()
 /**
 * Sets Updated Rotation Component world rotation to Pending Look At rotation.
 */
-void UNetworkedPhysics::ApplyLookAtRotation()
+void UNetworkedPhysics::ApplyLookAtOrientation()
 {
 	UE_LOG(LogTemp, Warning, TEXT("Apply rotation"));
 	if (OrientationRoot) {

@@ -269,7 +269,7 @@ void APinballPlayer::SwivelReticle(const FInputActionValue& Value)
 
 	if (Offset.Size() != 0.f) {
 		Reticle->AddInput(Offset);
-		NetworkPhysics->SetLookAtRotation(Reticle->GetRelativeLocation());
+		NetworkPhysics->SetLookAtOrientation(Reticle->GetRelativeLocation());
 	}
 }
 
