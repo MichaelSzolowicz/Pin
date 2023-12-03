@@ -24,19 +24,28 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Movement)
 	float Braking = 1.0f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Movement)
+	float BrakingOverMaxSpeed = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Movement)
+	float Tolerance = 1.0f;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Movement)
 	FVector InputDirection;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Movement)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Movement)
 	FVector MovementVelocity;
 
 public:
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
-	void Move();
+	void Move(float DeltaTime);
 
 	void AddInputDirection(FVector Direction);
 
 	FVector ConsumeInputDirection();
+
+	UFUNCTION(BlueprintCallable)
+	void AddForce(FVector Force);
 	
 };

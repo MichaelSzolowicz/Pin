@@ -10,8 +10,12 @@ class PIN_API ASteeringEnemy : public APawn
 	GENERATED_BODY()
 
 protected:
+	/** DEPRECATED */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Movement)
 	class UNetworkedPhysics* Physics;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Movement)
+	class UEnemyMovement* Movement;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Movement)
 	class UAiSteering* Steering;
