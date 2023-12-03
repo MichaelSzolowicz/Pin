@@ -1,8 +1,5 @@
 #include "Ai/EnemyMovement.h"
 
-void UEnemyMovement::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
-{
-}
 
 void UEnemyMovement::Move(float DeltaTime)
 {
@@ -32,7 +29,8 @@ void UEnemyMovement::Move(float DeltaTime)
 	if (MovementVelocity.Size() >= MaxSpeed) {
 		FVector Diff = MovementVelocity - MovementVelocity.GetSafeNormal() * MaxSpeed;
 
-		MovementVelocity -= Diff - (Diff * FMath::Clamp(1.0f - BrakingOverMaxSpeed / Diff.Size(), 0.0f, 1.0f));
+		// Multiplying by (1 - BrakingOverMaxSpeed) allows braking to scale with speed, while still allowing a braking value of 1 to cause an instant stop.
+		MovementVelocity -= Diff - (Diff * FMath::Clamp(1.0f - BrakingOverMaxSpeed / Diff.Size(), 0.0f, 1.0f) * FMath::Clamp(1.0f - BrakingOverMaxSpeed, 0.0f, 1.0f));
 
 		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, FString::Printf(TEXT("Diff: %f"), Diff.Size()));
 

@@ -1,5 +1,3 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -7,7 +5,7 @@
 #include "EnemyMovement.generated.h"
 
 /**
- * 
+ * Defines simple, velocity based movement for hovering enemies.
  */
 UCLASS()
 class PIN_API UEnemyMovement : public UMovementComponent
@@ -27,9 +25,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Movement)
 	float BrakingOverMaxSpeed = 1.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Movement)
-	float Tolerance = 1.0f;
-
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Movement)
 	FVector InputDirection;
 
@@ -37,8 +32,6 @@ protected:
 	FVector MovementVelocity;
 
 public:
-	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
-
 	void Move(float DeltaTime);
 
 	void AddInputDirection(FVector Direction);
