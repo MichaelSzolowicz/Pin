@@ -23,13 +23,22 @@ protected:
 	float Braking = 1.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Movement)
+	float Turning = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Movement)
 	float BrakingOverMaxSpeed = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Movement)
+	float TurningOverMaxSpeed = 1.0f;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Movement)
 	FVector InputDirection;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Movement)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Movement)
 	FVector MovementVelocity;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Movement)
+	FVector VelocityOverMax;
 
 public:
 	void Move(float DeltaTime);
