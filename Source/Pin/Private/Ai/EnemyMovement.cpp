@@ -3,36 +3,59 @@
 
 void UEnemyMovement::Move(float DeltaTime)
 {
+	//Input
 	FVector Input = ConsumeInputDirection();
 	if (Input.Size() > 0) {
 		FVector Dv = Input * Acceleration * DeltaTime;
+		FVector Target = MovementVelocity + Dv;
+
+		// Take friction out
+		MovementVelocity -= MovementVelocity - MovementVelocity * FMath::Clamp(1.0f - Turning, 0, 1);
+
+		// Add new input
 		FVector NewVelocity = MovementVelocity + Dv;
+
+		// Compensate for lost accel or speed, but use new direction
+		NewVelocity = NewVelocity.GetSafeNormal() * Target.Size();
 
 		if (NewVelocity.Size() > MaxSpeed) {
 			// Let input counteract velocity over max speed.
 			float Dot = Dv.Dot(VelocityOverMax.GetSafeNormal());
+			Dot = FMath::Clamp(Dot, -VelocityOverMax.Size(), VelocityOverMax.Size());
 			if (Dot < 0) {
-				VelocityOverMax -= Dot * Dv.GetSafeNormal();
-				Dv -= Dot * Dv.GetSafeNormal();
+				VelocityOverMax += Dot * VelocityOverMax.GetSafeNormal();
+				Dv += Dot * VelocityOverMax.GetSafeNormal();
 			}
 			NewVelocity = MovementVelocity + Dv;
 
 			NewVelocity = NewVelocity.GetSafeNormal() * MaxSpeed;
 		}
 
-		DrawDebugLine(GetWorld(), UpdatedComponent->GetComponentLocation(),
-			UpdatedComponent->GetComponentLocation() + (NewVelocity - MovementVelocity) * 200, FColor::Blue, false, .166f);
-
 		MovementVelocity = NewVelocity;
 	}
-	else if((MovementVelocity + VelocityOverMax).Size() <= MaxSpeed + .10f){
-		MovementVelocity -= MovementVelocity - (MovementVelocity * FMath::Clamp(1.0f - Braking, 0.0f, 1.0f));
+
+	// Braking
+	if(Input.Size() <= 0 || (MovementVelocity + VelocityOverMax).Size() > MaxSpeed){
+		FVector ActualVelocity = MovementVelocity + VelocityOverMax;
+
+		FVector Delta;
+
+		if ((MovementVelocity + VelocityOverMax).Size() > MaxSpeed) {
+			Delta = ActualVelocity - (ActualVelocity * FMath::Clamp(1.0f - Braking * BrakingOverMaxSpeed, 0.0f, 1.0f));
+		}
+		else {
+			Delta = ActualVelocity - (ActualVelocity * FMath::Clamp(1.0f - Braking, 0.0f, 1.0f));
+		}
+
+		VelocityOverMax -= FMath::Clamp(Delta.Dot(VelocityOverMax.GetSafeNormal()), 0, VelocityOverMax.Size()) * VelocityOverMax.GetSafeNormal();
+		Delta -= FMath::Clamp(Delta.Dot(VelocityOverMax.GetSafeNormal()), 0, VelocityOverMax.Size()) * VelocityOverMax.GetSafeNormal();
+		MovementVelocity -= Delta;
 	}
 
-	// Multiplying by (1 - BrakingOverMaxSpeed) allows braking to scale with speed, while still allowing a braking value of 1 to cause an instant stop.
-	VelocityOverMax -= VelocityOverMax - (VelocityOverMax * FMath::Clamp(1.0f - BrakingOverMaxSpeed / VelocityOverMax.Size(), 0.0f, 1.0f) * FMath::Clamp(1.0f - BrakingOverMaxSpeed, 0.0f, 1.0f));
-	
 	FVector DeltaPos = (MovementVelocity + VelocityOverMax) * DeltaTime;
+
+	DrawDebugLine(GetWorld(), UpdatedComponent->GetComponentLocation(),
+		UpdatedComponent->GetComponentLocation() + VelocityOverMax, FColor::Blue, false, .166f);
 
 	// Velocity is no longer "over max," so get rid of it. 
 	if ((MovementVelocity + VelocityOverMax).Size() <= MaxSpeed) {
