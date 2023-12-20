@@ -26,19 +26,21 @@ protected:
 	float Turning = 1.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Movement)
-	float BrakingOverMaxSpeed = 1.0f;
+	float BrakingWhileSpeeding = 1.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Movement)
-	float TurningOverMaxSpeed = 1.0f;
+	float TurningWhileSpeeding = 1.0f;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Movement)
 	FVector InputDirection;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Movement)
-	FVector MovementVelocity;
+	FVector ControlVelocity;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Movement)
-	FVector VelocityOverMax;
+	FVector ExcessVelocity;
+
+	const float TOLERANCE = 0.1f;
 
 public:
 	void Move(float DeltaTime);
@@ -47,7 +49,27 @@ public:
 
 	FVector ConsumeInputDirection();
 
+	/**
+	* Force is actually applied next tick, so that it doesn't interfere with ongoing movement calculations.
+	* @param Force - force to apply
+	*/
 	UFUNCTION(BlueprintCallable)
 	void AddForce(FVector Force);
+
+protected:
+	void ApplyInput(FVector Input, float DeltaTime);
+
+	void ApplyBraking(float DeltaTime);
+
+	/**
+	* Actual logic for applying a force.
+	* Called on a timer by AddForce so force doesn't interfere with ongoing movement calculations.
+	*/
+	UFUNCTION()
+	void AddForceInternal(FVector Force);
+
+public:
+	UFUNCTION(BlueprintCallable)
+	FVector ActualVelocity() { return ControlVelocity + ExcessVelocity; }
 	
 };
