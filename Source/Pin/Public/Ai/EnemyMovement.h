@@ -35,10 +35,10 @@ protected:
 	FVector InputDirection;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Movement)
-	FVector ControlVelocity;
+	FVector InputVelocity;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Movement)
-	FVector ExcessVelocity;
+	FVector ComponentVelocity;
 
 	const float TOLERANCE = 0.1f;
 
@@ -67,9 +67,5 @@ protected:
 	*/
 	UFUNCTION()
 	void AddForceInternal(FVector Force);
-
-public:
-	UFUNCTION(BlueprintCallable)
-	FVector ActualVelocity() { return ControlVelocity + ExcessVelocity; }
 	
 };

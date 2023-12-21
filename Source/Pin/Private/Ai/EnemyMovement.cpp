@@ -9,85 +9,68 @@ void UEnemyMovement::Move(float DeltaTime)
 	ApplyInput(Input, DeltaTime);
 
 	// Braking
-	if(Input.Size() <= 0 || ActualVelocity().Size() > MaxSpeed + TOLERANCE) {
+	if(Input.Size() <= 0 || ComponentVelocity.Size() > MaxSpeed + TOLERANCE) {
 		ApplyBraking(DeltaTime);
 	}
 
-	FVector DeltaPos = ActualVelocity() * DeltaTime;
+	FVector DeltaPos = ComponentVelocity * DeltaTime;
 	FHitResult Hit;
 
 	// Physically move the actor
 	MoveUpdatedComponent(DeltaPos, UpdatedComponent->GetComponentRotation(), true, &Hit);
 	if (Hit.bBlockingHit) {
-		// Apply normal impulse to control and excess velocities.
-		float VelAlongNormal = ControlVelocity.Dot(Hit.Normal);
-		ControlVelocity += Hit.Normal * FMath::Abs(VelAlongNormal);
-		VelAlongNormal = ExcessVelocity.Dot(Hit.Normal);
-		ExcessVelocity += Hit.Normal * FMath::Abs(VelAlongNormal);
+		float VelAlongNormal = ComponentVelocity.Dot(Hit.Normal);
+		ComponentVelocity += Hit.Normal * FMath::Abs(VelAlongNormal);
 
 		SlideAlongSurface(DeltaPos, 1.0f - Hit.Time, Hit.Normal, Hit);
 	}
-
-	/* TESTONLY */
-	DrawDebugLine(GetWorld(), UpdatedComponent->GetComponentLocation(),
-		UpdatedComponent->GetComponentLocation() + (ExcessVelocity), FColor::Blue, false, .166f);
-	/* ENDTEST */
 }
 
 void UEnemyMovement::ApplyInput(FVector Input, float DeltaTime)
 {
-	if (Input.Size() <= 0) return;
+	if (Input.Size() <= 0) {
+		return;
+	}
+	if (ComponentVelocity.Size() < MaxSpeed + TOLERANCE) {
+		InputVelocity = ComponentVelocity;
+	}
 
 	FVector Dv = Input * Acceleration * DeltaTime;
+	FVector NonInputVelocity = ComponentVelocity - InputVelocity;
 
 	// Store target speed for steering
-	float TargetSpeed = (ControlVelocity + Dv).Size();
+	float TargetSpeed = (InputVelocity + Dv).Size();
 
-	// Take friction out
-	float ActualTurning = ActualVelocity().Size() > MaxSpeed + TOLERANCE ? TurningWhileSpeeding : Turning;
-	ControlVelocity -= ControlVelocity - ControlVelocity * FMath::Clamp(1.0f - ActualTurning, 0, 1);
-
-	// Add new input
-	FVector NewVelocity = ControlVelocity + Dv;
+	// Take friction out and add input
+	float ActualTurning = ComponentVelocity.Size() > MaxSpeed + TOLERANCE ? TurningWhileSpeeding : Turning;
+	FVector NewVelocity = InputVelocity - InputVelocity * FMath::Clamp(ActualTurning, 0, 1) + Dv;
 
 	// Compensate for lost accel or speed, but use new direction
 	NewVelocity = NewVelocity.GetSafeNormal() * TargetSpeed;
+	Dv = NewVelocity - InputVelocity;
 
 	if (NewVelocity.Size() > MaxSpeed + TOLERANCE) {
 		// Let input counteract excess velocity.
-		float Dot = Dv.Dot(ExcessVelocity.GetSafeNormal());
-		Dot = FMath::Clamp(Dot, -ExcessVelocity.Size(), ExcessVelocity.Size());
+		float Dot = Dv.Dot(NonInputVelocity.GetSafeNormal());
+		Dot = FMath::Clamp(Dot, -NonInputVelocity.Size(), NonInputVelocity.Size());
 		if (Dot < 0) {
-			FVector CounterExcessVelocity = Dot * ExcessVelocity.GetSafeNormal();
-			ExcessVelocity += CounterExcessVelocity;
+			FVector CounterExcessVelocity = Dot * NonInputVelocity.GetSafeNormal();
+			NonInputVelocity += CounterExcessVelocity;
 			NewVelocity -= CounterExcessVelocity;
 		}
 
 		NewVelocity = NewVelocity.GetSafeNormal() * MaxSpeed;
 	}
 
-	ControlVelocity = NewVelocity;
+	InputVelocity = NewVelocity;
+	ComponentVelocity = NonInputVelocity + InputVelocity;
 }
 
 void UEnemyMovement::ApplyBraking(float DeltaTime)
 {
-	float ActualBraking = ActualVelocity().Size() > MaxSpeed + TOLERANCE ? BrakingWhileSpeeding : Braking;
+	float ActualBraking = ComponentVelocity.Size() > MaxSpeed + TOLERANCE ? BrakingWhileSpeeding : Braking;
 
-	// Apply braking as a fraction of the actual velocity.
-	FVector Delta = ActualVelocity() - (ActualVelocity() * FMath::Clamp(1.0f - ActualBraking, 0.0f, 1.0f));
-
-	// Apply braking along excess velocity to excess velocity
-	FVector BrakingExcessVelocity = FMath::Clamp(Delta.Dot(ExcessVelocity.GetSafeNormal()), 0, ExcessVelocity.Size()) * ExcessVelocity.GetSafeNormal();
-
-	ExcessVelocity -= BrakingExcessVelocity;
-	Delta -= BrakingExcessVelocity;
-	ControlVelocity -= Delta;
-
-	// Velocity is no longer "over max," so get rid of it.
-	if (ActualVelocity().Size() <= MaxSpeed + TOLERANCE) {
-		ControlVelocity += ExcessVelocity;
-		ExcessVelocity = FVector::Zero();
-	}
+	ComponentVelocity -= ComponentVelocity - (ComponentVelocity * FMath::Clamp(1.0f - ActualBraking, 0.0f, 1.0f));
 }
 
 void UEnemyMovement::AddInputDirection(FVector Direction)
@@ -112,11 +95,5 @@ void UEnemyMovement::AddForce(FVector Force)
 
 void UEnemyMovement::AddForceInternal(FVector Force)
 {
-	ControlVelocity += Force * GetWorld()->DeltaTimeSeconds;
-
-	if (ControlVelocity.Size() > MaxSpeed + TOLERANCE) {
-		FVector T = ControlVelocity.GetSafeNormal() * (ControlVelocity.Size() - MaxSpeed);
-		ControlVelocity -= T;
-		ExcessVelocity += T;
-	}
+	ComponentVelocity += Force * GetWorld()->DeltaTimeSeconds;
 }
