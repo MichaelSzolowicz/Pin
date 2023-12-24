@@ -1,5 +1,7 @@
 #include "Ai/EnemyMovement.h"
 
+#include "PawnUtilities.h"
+
 
 void UEnemyMovement::Move(float DeltaTime)
 {
@@ -17,6 +19,7 @@ void UEnemyMovement::Move(float DeltaTime)
 	FHitResult Hit;
 
 	// Physically move the actor
+	MoveDown(DeltaTime);
 	MoveUpdatedComponent(DeltaPos, UpdatedComponent->GetComponentRotation(), true, &Hit);
 	if (Hit.bBlockingHit) {
 		float VelAlongNormal = ComponentVelocity.Dot(Hit.Normal);
@@ -24,46 +27,82 @@ void UEnemyMovement::Move(float DeltaTime)
 
 		SlideAlongSurface(DeltaPos, 1.0f - Hit.Time, Hit.Normal, Hit);
 	}
+
+	DrawDebugLine(GetWorld(), UpdatedComponent->GetComponentLocation(),
+		UpdatedComponent->GetComponentLocation() + (ComponentVelocity - InputVelocity), FColor::Blue, false, 0.08f);
+}
+
+void UEnemyMovement::MoveDown(float DeltaTime)
+{
+	bConstrainToPlane = UPawnUtilities::RotateToFloor(UpdatedComponent, 52.1f);
+	SetPlaneConstraintNormal(UpdatedComponent->GetUpVector());
+
+	FVector DeltaPos = FVector::DownVector * FallSpeed * DeltaTime;
+	FHitResult Hit;
+
+	if (!bConstrainToPlane) {
+		MoveUpdatedComponent(DeltaPos, UpdatedComponent->GetComponentRotation(), true, &Hit);
+
+		if (Hit.bBlockingHit) {
+			SlideAlongSurface(DeltaPos, 1.0f - Hit.Time, Hit.Normal, Hit);
+		}
+	}
 }
 
 void UEnemyMovement::ApplyInput(FVector Input, float DeltaTime)
 {
-	if (Input.Size() <= 0) {
-		return;
-	}
-	if (ComponentVelocity.Size() < MaxSpeed + TOLERANCE) {
-		InputVelocity = ComponentVelocity;
-	}
+	if (Input.Size() <= 0) return;
+	if (ComponentVelocity.Size() <= MaxSpeed + TOLERANCE) InputVelocity = ComponentVelocity;
 
-	FVector Dv = Input * Acceleration * DeltaTime;
-	FVector NonInputVelocity = ComponentVelocity - InputVelocity;
+	ComponentVelocity -= InputVelocity;
+	FVector Dv = Input * DeltaTime * Acceleration;
 
-	// Store target speed for steering
-	float TargetSpeed = (InputVelocity + Dv).Size();
-
-	// Take friction out and add input
 	float ActualTurning = ComponentVelocity.Size() > MaxSpeed + TOLERANCE ? TurningWhileSpeeding : Turning;
-	FVector NewVelocity = InputVelocity - InputVelocity * FMath::Clamp(ActualTurning, 0, 1) + Dv;
+	InputVelocity = (Dv + (InputVelocity - InputVelocity * FMath::Clamp(ActualTurning, 0, 1))).GetSafeNormal() * InputVelocity.Size();
 
-	// Compensate for lost accel or speed, but use new direction
-	NewVelocity = NewVelocity.GetSafeNormal() * TargetSpeed;
-	Dv = NewVelocity - InputVelocity;
+	if ((InputVelocity + Dv).Size() > MaxSpeed + TOLERANCE) {
+		FVector ExcessAccel = ((InputVelocity + Dv).Size() - MaxSpeed) * Dv.GetSafeNormal();
+		Dv -= ExcessAccel;
+		InputVelocity = (InputVelocity + Dv).GetSafeNormal() * MaxSpeed;
+		ComponentVelocity += InputVelocity;
 
-	if (NewVelocity.Size() > MaxSpeed + TOLERANCE) {
 		// Let input counteract excess velocity.
-		float Dot = Dv.Dot(NonInputVelocity.GetSafeNormal());
-		Dot = FMath::Clamp(Dot, -NonInputVelocity.Size(), NonInputVelocity.Size());
-		if (Dot < 0) {
-			FVector CounterExcessVelocity = Dot * NonInputVelocity.GetSafeNormal();
-			NonInputVelocity += CounterExcessVelocity;
-			NewVelocity -= CounterExcessVelocity;
+		if (ComponentVelocity.Size() > MaxSpeed + TOLERANCE) {
+			FVector ExcessVelocity = ComponentVelocity - InputVelocity;
+			
+			// Horribly ineffecient but gets the expressiveness I want across. Should optimize later.
+			if (ExcessVelocity.X * ExcessAccel.X < 0) {
+				if (FMath::Abs(ExcessAccel.X) > FMath::Abs(ExcessVelocity.X)) {
+					ExcessVelocity.X = 0;
+				}
+				else {
+					ExcessVelocity.X += ExcessAccel.X;
+				}
+			}
+			if (ExcessVelocity.Y * ExcessAccel.Y < 0) {
+				if (FMath::Abs(ExcessAccel.Y) > FMath::Abs(ExcessVelocity.Y)) {
+					ExcessVelocity.Y = 0;
+				}
+				else {
+					ExcessVelocity.Y += ExcessAccel.Y;
+				}
+			}
+			if (ExcessVelocity.Z * ExcessAccel.Z < 0) {
+				if (FMath::Abs(ExcessAccel.Z) > FMath::Abs(ExcessVelocity.Z)) {
+					ExcessVelocity.Z = 0;
+				}
+				else {
+					ExcessVelocity.Z += ExcessAccel.Z;
+				}
+			}
+
+			ComponentVelocity = InputVelocity + ExcessVelocity;
 		}
-
-		NewVelocity = NewVelocity.GetSafeNormal() * MaxSpeed;
 	}
-
-	InputVelocity = NewVelocity;
-	ComponentVelocity = NonInputVelocity + InputVelocity;
+	else {
+		InputVelocity += Dv;
+		ComponentVelocity += InputVelocity;
+	}
 }
 
 void UEnemyMovement::ApplyBraking(float DeltaTime)

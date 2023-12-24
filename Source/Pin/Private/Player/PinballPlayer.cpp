@@ -87,8 +87,7 @@ void APinballPlayer::Bump(FVector Impulse)
 
 void APinballPlayer::OrientToFloor()
 {
-	FQuat DeltaRotation = UPawnUtilities::RotateToFloor(RotationRoot);
-	RotationRoot->AddWorldRotation(DeltaRotation);
+	UPawnUtilities::RotateToFloor(RotationRoot);
 	Reticle->SetPlaneNormal(RotationRoot->GetUpVector());
 }
 

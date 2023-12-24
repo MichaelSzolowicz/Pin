@@ -14,7 +14,7 @@ class PIN_API UPawnUtilities : public UBlueprintFunctionLibrary
 
 public:
 	UFUNCTION(BlueprintCallable)
-	static FQuat RotateToFloor(const USceneComponent* RootComponent, float ProbeDistance = 250.f);
+	static bool RotateToFloor(USceneComponent* RootComponent, float ProbeDistance = 250.f);
 
 	UFUNCTION(BlueprintCallable)
 	static bool CollisionFilters(const AActor* ThisActor, const UPrimitiveComponent* OverlappedComponent, const AActor* OtherActor, const UPrimitiveComponent* OtherComponent, bool bIgnoreInstigator = true);

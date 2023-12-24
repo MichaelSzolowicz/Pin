@@ -31,6 +31,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Movement)
 	float TurningWhileSpeeding = 1.0f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Movement)
+	float FallSpeed = 10.0f;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Movement)
 	FVector InputDirection;
 
@@ -57,6 +60,8 @@ public:
 	void AddForce(FVector Force);
 
 protected:
+	void MoveDown(float DeltaTime);
+
 	void ApplyInput(FVector Input, float DeltaTime);
 
 	void ApplyBraking(float DeltaTime);

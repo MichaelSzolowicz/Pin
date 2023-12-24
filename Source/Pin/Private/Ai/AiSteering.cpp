@@ -32,7 +32,7 @@ FVector UAiSteering::GetInput()
 	/*ENDTEST*/
 
 	Input.Normalize();
-	Input.Z = 0.f;	// Later on the movement component will constrain movement parallel to the floor, and this will become unnecessary.
+	//Input.Z = 0.f;	// Later on the movement component will constrain movement parallel to the floor, and this will become unnecessary.
 
 	return Input * BaseSpeed;
 }

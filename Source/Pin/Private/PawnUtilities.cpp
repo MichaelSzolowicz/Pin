@@ -1,7 +1,7 @@
 #include "PawnUtilities.h"
 
 
-FQuat UPawnUtilities::RotateToFloor(const USceneComponent* RootComponent, float ProbeDistance)
+bool UPawnUtilities::RotateToFloor(USceneComponent* RootComponent, float ProbeDistance)
 {
 	// Probe ground normal
 	FHitResult Hit;
@@ -18,8 +18,10 @@ FQuat UPawnUtilities::RotateToFloor(const USceneComponent* RootComponent, float 
 
 		Result = FQuat::FindBetweenNormals(RootComponent->GetUpVector(), Hit.Normal);
 	}
+
+	RootComponent->AddWorldRotation(Result);
 	
-	return Result;
+	return Hit.bBlockingHit;
 }
 
 bool UPawnUtilities::CollisionFilters(const AActor* ThisActor, const UPrimitiveComponent* OverlappedComponent, const AActor* OtherActor, const UPrimitiveComponent* OtherComponent, bool bIgnoreInstigator)
