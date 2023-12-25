@@ -38,10 +38,10 @@ protected:
 	FVector InputDirection;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Movement)
-	FVector InputVelocity;
+	FVector ControlVelocity;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Movement)
-	FVector ComponentVelocity;
+	FVector ExternalVelocity;
 
 	const float TOLERANCE = 0.1f;
 
@@ -59,9 +59,7 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void AddForce(FVector Force);
 
-	FVector GetComponentVelocity() { return ComponentVelocity; }
-
-	FVector GeInputVelocity() { return InputVelocity; }
+	FVector ActualVelocity() { return ExternalVelocity + ControlVelocity; }
 
 	float GetMaxSpeed() { return MaxSpeed; }
 

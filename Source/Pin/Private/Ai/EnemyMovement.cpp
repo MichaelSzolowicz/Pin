@@ -11,25 +11,31 @@ void UEnemyMovement::Move(float DeltaTime)
 	ApplyInput(Input, DeltaTime);
 
 	// Braking
-	if(Input.Size() <= 0 || ComponentVelocity.Size() > MaxSpeed + TOLERANCE) {
+	if(Input.Size() <= 0 || ActualVelocity().Size() > MaxSpeed + TOLERANCE) {
 		ApplyBraking(DeltaTime);
 	}
 
-	FVector DeltaPos = ComponentVelocity * DeltaTime;
+	FVector DeltaPos = ActualVelocity() * DeltaTime;
 	FHitResult Hit;
 
 	// Physically move the actor
 	MoveDown(DeltaTime);
 	MoveUpdatedComponent(DeltaPos, UpdatedComponent->GetComponentRotation(), true, &Hit);
 	if (Hit.bBlockingHit) {
-		float VelAlongNormal = ComponentVelocity.Dot(Hit.Normal);
-		ComponentVelocity += Hit.Normal * FMath::Abs(VelAlongNormal);
+		float VelAlongNormal = ActualVelocity().Dot(Hit.Normal);
+		ExternalVelocity += Hit.Normal * FMath::Abs(VelAlongNormal);
 
 		SlideAlongSurface(DeltaPos, 1.0f - Hit.Time, Hit.Normal, Hit);
 	}
 
+	// Collapse velocities if we are under max speed, that is to say in control.
+	if (ActualVelocity().Size() < MaxSpeed) {
+		ControlVelocity = ActualVelocity();
+		ExternalVelocity = FVector::Zero();
+	}
+
 	DrawDebugLine(GetWorld(), UpdatedComponent->GetComponentLocation(),
-		UpdatedComponent->GetComponentLocation() + (ComponentVelocity - InputVelocity), FColor::Blue, false, 0.08f);
+		UpdatedComponent->GetComponentLocation() + ExternalVelocity, FColor::Blue, false, 0.08f);
 }
 
 void UEnemyMovement::MoveDown(float DeltaTime)
@@ -52,64 +58,55 @@ void UEnemyMovement::MoveDown(float DeltaTime)
 void UEnemyMovement::ApplyInput(FVector Input, float DeltaTime)
 {
 	if (Input.Size() <= 0) return;
-	if (ComponentVelocity.Size() <= MaxSpeed + TOLERANCE) InputVelocity = ComponentVelocity;
 
-	ComponentVelocity -= InputVelocity;
 	FVector Dv = Input * DeltaTime * Acceleration;
 
-	float ActualTurning = ComponentVelocity.Size() > MaxSpeed + TOLERANCE ? TurningWhileSpeeding : Turning;
-	InputVelocity = (Dv + (InputVelocity - InputVelocity * FMath::Clamp(ActualTurning, 0, 1))).GetSafeNormal() * InputVelocity.Size();
+	float ActualTurning = ActualVelocity().Size() > MaxSpeed + TOLERANCE ? TurningWhileSpeeding : Turning;
+	ControlVelocity = (Dv + (ControlVelocity - ControlVelocity * FMath::Clamp(ActualTurning, 0, 1))).GetSafeNormal() * ControlVelocity.Size();
 
-	if ((InputVelocity + Dv).Size() > MaxSpeed + TOLERANCE) {
-		FVector ExcessAccel = ((InputVelocity + Dv).Size() - MaxSpeed) * Dv.GetSafeNormal();
+	if ((ControlVelocity + Dv).Size() > MaxSpeed + TOLERANCE) {
+		FVector ExcessAccel = ((ControlVelocity + Dv).Size() - MaxSpeed) * Dv.GetSafeNormal();
 		Dv -= ExcessAccel;
-		InputVelocity = (InputVelocity + Dv).GetSafeNormal() * MaxSpeed;
-		ComponentVelocity += InputVelocity;
+		ControlVelocity = (ControlVelocity + Dv).GetSafeNormal() * MaxSpeed;
 
 		// Let input counteract excess velocity.
-		if (ComponentVelocity.Size() > MaxSpeed + TOLERANCE) {
-			FVector ExcessVelocity = ComponentVelocity - InputVelocity;
-			
-			// Horribly ineffecient but gets the expressiveness I want across. Should optimize later.
-			if (ExcessVelocity.X * ExcessAccel.X < 0) {
-				if (FMath::Abs(ExcessAccel.X) > FMath::Abs(ExcessVelocity.X)) {
-					ExcessVelocity.X = 0;
-				}
-				else {
-					ExcessVelocity.X += ExcessAccel.X;
-				}
+		// Horribly ineffecient but gets the expressiveness I want across. Should optimize later.
+		if (ExternalVelocity.X * ExcessAccel.X < 0) {
+			if (FMath::Abs(ExcessAccel.X) > FMath::Abs(ExternalVelocity.X)) {
+				ExternalVelocity.X = 0;
 			}
-			if (ExcessVelocity.Y * ExcessAccel.Y < 0) {
-				if (FMath::Abs(ExcessAccel.Y) > FMath::Abs(ExcessVelocity.Y)) {
-					ExcessVelocity.Y = 0;
-				}
-				else {
-					ExcessVelocity.Y += ExcessAccel.Y;
-				}
+			else {
+				ExternalVelocity.X += ExcessAccel.X;
 			}
-			if (ExcessVelocity.Z * ExcessAccel.Z < 0) {
-				if (FMath::Abs(ExcessAccel.Z) > FMath::Abs(ExcessVelocity.Z)) {
-					ExcessVelocity.Z = 0;
-				}
-				else {
-					ExcessVelocity.Z += ExcessAccel.Z;
-				}
+		}
+		if (ExternalVelocity.Y * ExcessAccel.Y < 0) {
+			if (FMath::Abs(ExcessAccel.Y) > FMath::Abs(ExternalVelocity.Y)) {
+				ExternalVelocity.Y = 0;
 			}
-
-			ComponentVelocity = InputVelocity + ExcessVelocity;
+			else {
+				ExternalVelocity.Y += ExcessAccel.Y;
+			}
+		}
+		if (ExternalVelocity.Z * ExcessAccel.Z < 0) {
+			if (FMath::Abs(ExcessAccel.Z) > FMath::Abs(ExternalVelocity.Z)) {
+				ExternalVelocity.Z = 0;
+			}
+			else {
+				ExternalVelocity.Z += ExcessAccel.Z;
+			}
 		}
 	}
 	else {
-		InputVelocity += Dv;
-		ComponentVelocity += InputVelocity;
+		ControlVelocity += Dv;
 	}
 }
 
 void UEnemyMovement::ApplyBraking(float DeltaTime)
 {
-	float ActualBraking = ComponentVelocity.Size() > MaxSpeed + TOLERANCE ? BrakingWhileSpeeding : Braking;
+	
+	float ActualBraking = ActualVelocity().Size() > MaxSpeed + TOLERANCE ? BrakingWhileSpeeding : Braking;
 
-	ComponentVelocity -= ComponentVelocity - (ComponentVelocity * FMath::Clamp(1.0f - ActualBraking, 0.0f, 1.0f));
+	ExternalVelocity -= ActualVelocity() - (ActualVelocity() * FMath::Clamp(1.0f - ActualBraking, 0.0f, 1.0f));
 }
 
 void UEnemyMovement::AddInputDirection(FVector Direction)
@@ -134,12 +131,5 @@ void UEnemyMovement::AddForce(FVector Force)
 
 void UEnemyMovement::AddForceInternal(FVector Force)
 {
-	FVector Dv = Force * GetWorld()->DeltaTimeSeconds;
-
-	// Let force affect velocity we have control over (input velocity), until force causes us to go over max speed.
-	InputVelocity += Dv;
-	if (InputVelocity.Size() > MaxSpeed) {
-		ComponentVelocity += InputVelocity.GetSafeNormal() * (InputVelocity.Size() - MaxSpeed);
-		InputVelocity = InputVelocity.GetSafeNormal() * MaxSpeed;
-	}
+	ExternalVelocity += Force * GetWorld()->DeltaTimeSeconds;
 }

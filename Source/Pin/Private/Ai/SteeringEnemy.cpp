@@ -28,13 +28,11 @@ void ASteeringEnemy::Tick(float DeltaTime)
 	//Input.Z = 0.0f;
 
 	// Try to move against velocity if we are speeding
-	if (Movement->GetComponentVelocity().Size() > Movement->GetMaxSpeed() + 0.1f) {
+	if (Movement->ActualVelocity().Size() > Movement->GetMaxSpeed() + 0.1f) {
 		// * 1.05 so counter velocity input is always larger than base input.
-		Input += -Movement->GetComponentVelocity().GetSafeNormal() * 1.05f;
+		Input += -Movement->ActualVelocity().GetSafeNormal() * 1.05f;
 		Input.Normalize();
 	}
-
-
 
 	Movement->AddInputDirection(Input);
 	Movement->Move(DeltaTime);
