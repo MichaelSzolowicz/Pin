@@ -34,6 +34,10 @@ void UEnemyMovement::Move(float DeltaTime)
 		ExternalVelocity = FVector::Zero();
 	}
 
+
+	// Apply accumulated forces after movement so they do not interfere with calculations.
+	ApplyAccumulatedForce(DeltaTime);
+
 	DrawDebugLine(GetWorld(), UpdatedComponent->GetComponentLocation(),
 		UpdatedComponent->GetComponentLocation() + ExternalVelocity, FColor::Blue, false, 0.08f);
 }
@@ -124,12 +128,11 @@ FVector UEnemyMovement::ConsumeInputDirection()
 
 void UEnemyMovement::AddForce(FVector Force)
 {
-	FTimerDelegate AddForceDelayed;
-	AddForceDelayed.BindUFunction(this, FName("AddForceInternal"), Force);
-	GetWorld()->GetTimerManager().SetTimerForNextTick(AddForceDelayed);
+	AccumulatedForce += Force;
 }
 
-void UEnemyMovement::AddForceInternal(FVector Force)
+void UEnemyMovement::ApplyAccumulatedForce(float DeltaTime)
 {
-	ExternalVelocity += Force * GetWorld()->DeltaTimeSeconds;
+	ExternalVelocity += AccumulatedForce * DeltaTime;
+	AccumulatedForce = FVector::Zero();
 }

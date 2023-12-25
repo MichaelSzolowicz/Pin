@@ -37,6 +37,9 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Movement)
 	FVector ExternalVelocity;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Movement)
+	FVector AccumulatedForce;
+
 	const float TOLERANCE = 0.1f;
 
 public:
@@ -69,6 +72,6 @@ protected:
 	* Called on a timer by AddForce so force doesn't interfere with ongoing movement calculations.
 	*/
 	UFUNCTION()
-	void AddForceInternal(FVector Force);
+	void ApplyAccumulatedForce(float DeltaTime);
 	
 };
