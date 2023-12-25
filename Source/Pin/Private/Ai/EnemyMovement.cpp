@@ -8,10 +8,10 @@ void UEnemyMovement::Move(float DeltaTime)
 	FVector Input = ConsumeInputDirection();
 
 	//Input
-	ApplyInput(Input, DeltaTime);
+	FVector Dv = ApplyInput(Input, DeltaTime);
 
 	// Braking
-	if(Input.Size() <= 0 || ActualVelocity().Size() > MaxSpeed + TOLERANCE) {
+	if(Dv.Size() <= 0 || ActualVelocity().Size() > MaxSpeed + TOLERANCE) {
 		ApplyBraking(DeltaTime);
 	}
 
@@ -55,57 +55,57 @@ void UEnemyMovement::MoveDown(float DeltaTime)
 	}
 }
 
-void UEnemyMovement::ApplyInput(FVector Input, float DeltaTime)
+FVector UEnemyMovement::ApplyInput(FVector Input, float DeltaTime)
 {
-	if (Input.Size() <= 0) return;
+	if (Input.Size() <= 0) return Input;
 
 	FVector Dv = Input * DeltaTime * Acceleration;
 
-	float ActualTurning = ActualVelocity().Size() > MaxSpeed + TOLERANCE ? TurningWhileSpeeding : Turning;
-	ControlVelocity = (Dv + (ControlVelocity - ControlVelocity * FMath::Clamp(ActualTurning, 0, 1))).GetSafeNormal() * ControlVelocity.Size();
-
-	if ((ControlVelocity + Dv).Size() > MaxSpeed + TOLERANCE) {
-		FVector ExcessAccel = ((ControlVelocity + Dv).Size() - MaxSpeed) * Dv.GetSafeNormal();
-		Dv -= ExcessAccel;
-		ControlVelocity = (ControlVelocity + Dv).GetSafeNormal() * MaxSpeed;
-
-		// Let input counteract excess velocity.
-		// Horribly ineffecient but gets the expressiveness I want across. Should optimize later.
-		if (ExternalVelocity.X * ExcessAccel.X < 0) {
-			if (FMath::Abs(ExcessAccel.X) > FMath::Abs(ExternalVelocity.X)) {
-				ExternalVelocity.X = 0;
-			}
-			else {
-				ExternalVelocity.X += ExcessAccel.X;
-			}
+	// Let input counteract excess velocity.
+	// Horribly ineffecient but gets the expressiveness I want across. Could optimize later.
+	if (ExternalVelocity.X * Dv.X < 0) {
+		if (FMath::Abs(Dv.X) > FMath::Abs(ExternalVelocity.X)) {
+			Dv.X += ExternalVelocity.X;
+			ExternalVelocity.X = 0;
 		}
-		if (ExternalVelocity.Y * ExcessAccel.Y < 0) {
-			if (FMath::Abs(ExcessAccel.Y) > FMath::Abs(ExternalVelocity.Y)) {
-				ExternalVelocity.Y = 0;
-			}
-			else {
-				ExternalVelocity.Y += ExcessAccel.Y;
-			}
-		}
-		if (ExternalVelocity.Z * ExcessAccel.Z < 0) {
-			if (FMath::Abs(ExcessAccel.Z) > FMath::Abs(ExternalVelocity.Z)) {
-				ExternalVelocity.Z = 0;
-			}
-			else {
-				ExternalVelocity.Z += ExcessAccel.Z;
-			}
+		else {
+			ExternalVelocity.X += Dv.X;
+			Dv.X = 0;
 		}
 	}
-	else {
-		ControlVelocity += Dv;
+	if (ExternalVelocity.Y * Dv.Y < 0) {
+		if (FMath::Abs(Dv.Y) > FMath::Abs(ExternalVelocity.Y)) {
+			Dv.Y += ExternalVelocity.Y;
+			ExternalVelocity.Y = 0;
+		}
+		else {
+			ExternalVelocity.Y += Dv.Y;
+			Dv.Y = 0;
+		}
 	}
+	if (ExternalVelocity.Z * Dv.Z < 0) {
+		if (FMath::Abs(Dv.Z) > FMath::Abs(ExternalVelocity.Z)) {
+			Dv.Z += ExternalVelocity.Z;
+			ExternalVelocity.Z = 0;
+		}
+		else {
+			ExternalVelocity.Z += Dv.Z;
+			Dv.Z = 0;
+		}
+	}
+
+	// Add remaining input to control velocity, but do not go over max speed.
+	ControlVelocity += Dv;
+	if (ControlVelocity.Size() > MaxSpeed + TOLERANCE) {
+		ControlVelocity = ControlVelocity.GetSafeNormal() * MaxSpeed;
+	}
+
+	return Dv;
 }
 
 void UEnemyMovement::ApplyBraking(float DeltaTime)
 {
-	
 	float ActualBraking = ActualVelocity().Size() > MaxSpeed + TOLERANCE ? BrakingWhileSpeeding : Braking;
-
 	ExternalVelocity -= ActualVelocity() - (ActualVelocity() * FMath::Clamp(1.0f - ActualBraking, 0.0f, 1.0f));
 }
 

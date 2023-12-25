@@ -23,13 +23,7 @@ protected:
 	float Braking = 1.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Movement)
-	float Turning = 1.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Movement)
 	float BrakingWhileSpeeding = 1.0f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Movement)
-	float TurningWhileSpeeding = 1.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Movement)
 	float FallSpeed = 10.0f;
@@ -66,7 +60,7 @@ public:
 protected:
 	void MoveDown(float DeltaTime);
 
-	void ApplyInput(FVector Input, float DeltaTime);
+	FVector ApplyInput(FVector Input, float DeltaTime);
 
 	void ApplyBraking(float DeltaTime);
 
