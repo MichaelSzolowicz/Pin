@@ -134,5 +134,12 @@ void UEnemyMovement::AddForce(FVector Force)
 
 void UEnemyMovement::AddForceInternal(FVector Force)
 {
-	ComponentVelocity += Force * GetWorld()->DeltaTimeSeconds;
+	FVector Dv = Force * GetWorld()->DeltaTimeSeconds;
+
+	// Let force affect velocity we have control over (input velocity), until force causes us to go over max speed.
+	InputVelocity += Dv;
+	if (InputVelocity.Size() > MaxSpeed) {
+		ComponentVelocity += InputVelocity.GetSafeNormal() * (InputVelocity.Size() - MaxSpeed);
+		InputVelocity = InputVelocity.GetSafeNormal() * MaxSpeed;
+	}
 }
