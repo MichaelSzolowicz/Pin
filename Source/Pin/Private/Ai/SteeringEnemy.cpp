@@ -24,9 +24,14 @@ void ASteeringEnemy::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 
 	FVector Input = Steering->GetInput();
-	Input.Normalize();	// Should change steering comp do it doesn't multiply input by a speed.
+	Input.Normalize();
 
-	//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, FString::Printf(TEXT("Enemy move: %s"), *Input.ToString()));
+	// Try to move against velocity if we are speeding
+	if (Movement->GetComponentVelocity().Size() > Movement->GetMaxSpeed() + 0.1f) {
+		// * 1.1 so counter velocity input is always larger than base input.
+		Input += -Movement->GetComponentVelocity().GetSafeNormal() * 1.1f;
+		Input.Normalize();
+	}
 
 	Movement->AddInputDirection(Input);
 	Movement->Move(DeltaTime);

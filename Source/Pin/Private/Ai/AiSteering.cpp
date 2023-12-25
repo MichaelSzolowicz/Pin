@@ -31,10 +31,10 @@ FVector UAiSteering::GetInput()
 	UE_LOG(LogTemp, Warning, TEXT("Input Size: %f"), Input.Size());
 	/*ENDTEST*/
 
-	Input.Normalize();
+	//Input.Normalize();
 	//Input.Z = 0.f;	// Later on the movement component will constrain movement parallel to the floor, and this will become unnecessary.
 
-	return Input * BaseSpeed;
+	return Input;
 }
 
 

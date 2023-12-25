@@ -59,6 +59,12 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void AddForce(FVector Force);
 
+	FVector GetComponentVelocity() { return ComponentVelocity; }
+
+	FVector GeInputVelocity() { return InputVelocity; }
+
+	float GetMaxSpeed() { return MaxSpeed; }
+
 protected:
 	void MoveDown(float DeltaTime);
 
