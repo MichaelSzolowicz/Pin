@@ -15,10 +15,10 @@ void UEnemyMovement::Move(float DeltaTime)
 		ApplyBraking(DeltaTime);
 	}
 
+	// Physically move the actor
 	FVector DeltaPos = ActualVelocity() * DeltaTime;
 	FHitResult Hit;
 
-	// Physically move the actor
 	MoveDown(DeltaTime);
 	MoveUpdatedComponent(DeltaPos, UpdatedComponent->GetComponentRotation(), true, &Hit);
 	if (Hit.bBlockingHit) {
@@ -34,17 +34,19 @@ void UEnemyMovement::Move(float DeltaTime)
 		ExternalVelocity = FVector::Zero();
 	}
 
-
 	// Apply accumulated forces after movement so they do not interfere with calculations.
 	ApplyAccumulatedForce(DeltaTime);
 
+	/*TESTONLY*/
 	DrawDebugLine(GetWorld(), UpdatedComponent->GetComponentLocation(),
 		UpdatedComponent->GetComponentLocation() + ExternalVelocity, FColor::Blue, false, 0.08f);
+	/*ENDTEST*/
 }
 
 void UEnemyMovement::MoveDown(float DeltaTime)
 {
-	bConstrainToPlane = UPawnUtilities::RotateToFloor(UpdatedComponent, 52.1f);
+	float Depth = UpdatedComponent->Bounds.BoxExtent.Z;
+	bConstrainToPlane = UPawnUtilities::RotateToFloor(UpdatedComponent, Depth + 3.0f);
 	SetPlaneConstraintNormal(UpdatedComponent->GetUpVector());
 
 	FVector DeltaPos = FVector::DownVector * FallSpeed * DeltaTime;
