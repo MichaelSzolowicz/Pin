@@ -23,6 +23,9 @@ void UNetworkedPhysics::TickComponent(float DeltaTime, enum ELevelTick TickType,
 
 	UE_LOG(LogTemp, Warning, TEXT("Apply rotation"));
 
+	LinearVelocity += AccumulatedImpulse * InverseMass();
+	AccumulatedImpulse = FVector::Zero();
+
 	UpdatePhysics(DeltaTime);
 }
 
@@ -394,7 +397,7 @@ void UNetworkedPhysics::SetLookAtOrientation(FVector LookAt)
 */
 void UNetworkedPhysics::AddImpulse(FVector Impulse)
 {
-	LinearVelocity += InverseMass() * Impulse;
+	AccumulatedImpulse += InverseMass() * Impulse;
 }
 
 

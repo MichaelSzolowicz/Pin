@@ -78,6 +78,9 @@ protected:
 		FVector AccumulatedForce;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Physics")
+		FVector AccumulatedImpulse;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Physics")
 		FVector LinearVelocity;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Physics")

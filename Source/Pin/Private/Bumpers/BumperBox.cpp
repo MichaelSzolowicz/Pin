@@ -12,6 +12,8 @@ void UBumperBox::BeginPlay()
 
 void UBumperBox::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
+	if (!BumperCooldown.StartCooldown(GetWorld())) return;
+
 	IBumperInterface* BumpedObject = Cast<IBumperInterface>(OtherActor);
 	if (BumpedObject) {
 		FVector Impulse = FVector::Zero();

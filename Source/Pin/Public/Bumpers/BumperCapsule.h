@@ -2,6 +2,9 @@
 
 #include "CoreMinimal.h"
 #include "Components/CapsuleComponent.h"
+
+#include "CooldownTimer.h"
+
 #include "BumperCapsule.generated.h"
 
 /**
@@ -15,6 +18,9 @@ class PIN_API UBumperCapsule : public UCapsuleComponent
 public:
 	UPROPERTY(EditDefaultsOnly, Category = Bumper)
 	float Strength = 1.0f;
+
+	UPROPERTY(EditDefaultsOnly, Category = Bumper)
+	FCooldownTimer BumperCooldown;
 
 	virtual void BeginPlay() override;
 

@@ -4,6 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "Components/BoxComponent.h"
+
+#include "CooldownTimer.h"
+
 #include "BumperBox.generated.h"
 
 /**
@@ -17,6 +20,9 @@ class PIN_API UBumperBox : public UBoxComponent
 public:
 	UPROPERTY(EditDefaultsOnly, Category = Bumper)
 	float Strength = 1.0f;
+
+	UPROPERTY(EditDefaultsOnly, Category = Bumper)
+	FCooldownTimer BumperCooldown;
 
 	virtual void BeginPlay() override;
 
