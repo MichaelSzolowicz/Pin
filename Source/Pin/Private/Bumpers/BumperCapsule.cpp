@@ -11,7 +11,7 @@ void UBumperCapsule::BeginPlay()
 
 void UBumperCapsule::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
-	if (!BumperCooldown.StartCooldown(GetWorld())) return;
+	if (!BumperCooldown.Start(GetWorld())) return;
 
 	UE_LOG(LogTemp, Warning, TEXT("%s bumped capsule bumper %s"), *OtherActor->GetName(), *this->GetName());
 

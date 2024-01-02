@@ -16,12 +16,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float TimeSeconds;
 
-protected:
 	UPROPERTY()
 	FTimerHandle Timer;
 
-public:
-	bool StartCooldown(UWorld* World) {
+	/**
+	* Start cooldown timer.
+	* @param World - use this world's timer manager.
+	* @return False if cooldown is already running, true otherwise.
+	*/
+	bool Start(UWorld* World) {
 		if (World->GetTimerManager().IsTimerActive(Timer)) {
 			return false;
 		}
