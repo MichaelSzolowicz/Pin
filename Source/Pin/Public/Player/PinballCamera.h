@@ -20,7 +20,7 @@ protected:
 	class USceneComponent* SpringArmBase;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Controls)
-	class UCameraRelativePositionControls* RelativePositionControls;
+	class UCameraPositionVolume* CameraPositionVolume;
 	
 public:	
 	APinballCamera();

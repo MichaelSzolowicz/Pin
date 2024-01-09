@@ -3,12 +3,15 @@
 #include "Components/SceneComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Camera/CameraComponent.h"
-#include "Player/CameraRelativePositionControls.h"
+#include "Player/CameraPositionVolume.h"
 
 
 APinballCamera::APinballCamera()
 {
 	PrimaryActorTick.bCanEverTick = true;
+
+	CameraPositionVolume = CreateDefaultSubobject<UCameraPositionVolume>(TEXT("RelativePositionControls"));
+	RootComponent = CameraPositionVolume;
 
 	SpringArmBase = CreateDefaultSubobject<USceneComponent>(TEXT("SpringArmBase"));
 	SpringArmBase->SetupAttachment(RootComponent);
@@ -18,15 +21,10 @@ APinballCamera::APinballCamera()
 
 	Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
 	Camera->SetupAttachment(SpringArm);
-
-	RelativePositionControls = CreateDefaultSubobject<UCameraRelativePositionControls>(TEXT("RelativePositionControls"));
 }
 
 void APinballCamera::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
-	RelativePositionControls->UpdatedComponent = SpringArmBase;
-	RelativePositionControls->UpdatePosition();
 }
 
