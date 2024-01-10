@@ -4,7 +4,6 @@
 #include "InputMappingContext.h"
 #include "EnhancedInput/Public/EnhancedInputComponent.h"
 #include "Player/DefaultPlayerInputConfig.h"
-#include "Player/AdvancedGrappleComponent.h"
 
 #include "Components/SphereComponent.h"
 #include "Player/NetworkedPhysics.h"

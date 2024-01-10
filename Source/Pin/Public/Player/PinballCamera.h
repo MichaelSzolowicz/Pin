@@ -17,13 +17,15 @@ protected:
 	class USpringArmComponent* SpringArm;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Camera)
-	class USceneComponent* SpringArmBase;
+	class USceneComponent* SpringArmRoot;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Controls)
 	class UCameraPositionVolume* CameraPositionVolume;
 	
 public:	
 	APinballCamera();
+
+	void BeginPlay() override;
 
 	virtual void Tick(float DeltaTime) override;
 

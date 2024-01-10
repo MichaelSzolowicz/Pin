@@ -13,14 +13,21 @@ APinballCamera::APinballCamera()
 	CameraPositionVolume = CreateDefaultSubobject<UCameraPositionVolume>(TEXT("RelativePositionControls"));
 	RootComponent = CameraPositionVolume;
 
-	SpringArmBase = CreateDefaultSubobject<USceneComponent>(TEXT("SpringArmBase"));
-	SpringArmBase->SetupAttachment(RootComponent);
+	SpringArmRoot = CreateDefaultSubobject<USceneComponent>(TEXT("SpringArmRoot"));
+	SpringArmRoot->SetupAttachment(RootComponent);
 
 	SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
-	SpringArm->SetupAttachment(SpringArmBase);
+	SpringArm->SetupAttachment(SpringArmRoot);
 
 	Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
 	Camera->SetupAttachment(SpringArm);
+}
+
+void APinballCamera::BeginPlay()
+{
+	Super::BeginPlay();
+
+	CameraPositionVolume->UpdatedComponent = SpringArmRoot;
 }
 
 void APinballCamera::Tick(float DeltaTime)
