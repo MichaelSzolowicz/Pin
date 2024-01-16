@@ -14,7 +14,7 @@ bool UPawnUtilities::RotateToFloor(USceneComponent* RootComponent, float ProbeDi
 
 	FQuat Result = FQuat::Identity;
 	if (Hit.bBlockingHit) {
-		UE_LOG(LogTemp, Warning, TEXT("Rotation probe hit: %s"), *Hit.GetActor()->GetName());
+		//UE_LOG(LogTemp, Warning, TEXT("Rotation probe hit: %s"), *Hit.GetActor()->GetName());
 
 		Result = FQuat::FindBetweenNormals(RootComponent->GetUpVector(), Hit.Normal);
 	}
