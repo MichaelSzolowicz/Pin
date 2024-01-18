@@ -21,7 +21,7 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Movement)
 	float Acceleration = 1.0f;
 
-	/** Braking factor. 1 == instant stopping, 0 == will never stop. */
+	/** Braking factor. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Movement)
 	float Braking = 1.0f;
 
@@ -45,9 +45,9 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Movement)
 	FVector ExternalVelocity;
 
-	/** Force to be applied next update. */
+	/** Impulse to be applied next update. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Movement)
-	FVector AccumulatedForce;
+	FVector AccumulatedImpulse;
 
 	const float TOLERANCE = 0.1f;
 
@@ -74,7 +74,7 @@ public:
 	* @param Force - force to apply
 	*/
 	UFUNCTION(BlueprintCallable)
-	void AddForce(FVector Force);
+	void AddImpulse(FVector Impulse);
 
 	/**
 	* @return Sum of External Velocity and Control Velocity.
@@ -108,6 +108,6 @@ protected:
 	* @param DeltaTime
 	*/
 	UFUNCTION()
-	void ApplyAccumulatedForce(float DeltaTime);
+	void ApplyAccumulatedImpulse();
 	
 };

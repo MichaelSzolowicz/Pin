@@ -11,7 +11,7 @@ void UEnemyMovement::Move(float DeltaTime)
 	FVector Dv = ApplyInput(Input, DeltaTime);
 
 	// Braking
-	if(Dv.Size() <= 0 || ActualVelocity().Size() > MaxSpeed + TOLERANCE) {
+	if (Dv.Size() <= 0 || ActualVelocity().Size() > MaxSpeed + TOLERANCE) {
 		ApplyBraking(DeltaTime);
 	}
 
@@ -35,7 +35,7 @@ void UEnemyMovement::Move(float DeltaTime)
 	}
 
 	// Apply accumulated forces after movement so they do not interfere with calculations.
-	ApplyAccumulatedForce(DeltaTime);
+	ApplyAccumulatedImpulse();
 
 	/*TESTONLY*/
 	DrawDebugLine(GetWorld(), UpdatedComponent->GetComponentLocation(),
@@ -112,7 +112,7 @@ FVector UEnemyMovement::ApplyInput(FVector Input, float DeltaTime)
 void UEnemyMovement::ApplyBraking(float DeltaTime)
 {
 	float ActualBraking = ActualVelocity().Size() > MaxSpeed + TOLERANCE ? BrakingWhileSpeeding : Braking;
-	ExternalVelocity -= ActualVelocity() - (ActualVelocity() * FMath::Clamp(1.0f - ActualBraking, 0.0f, 1.0f));
+	ExternalVelocity -= ActualVelocity() - (ActualVelocity() * FMath::Clamp(1.0f - ActualBraking * DeltaTime, 0.0f, 1.0f));
 }
 
 void UEnemyMovement::AddInputDirection(FVector Direction)
@@ -128,13 +128,13 @@ FVector UEnemyMovement::ConsumeInputDirection()
 	return Temp;
 }
 
-void UEnemyMovement::AddForce(FVector Force)
+void UEnemyMovement::AddImpulse(FVector Impulse)
 {
-	AccumulatedForce += Force;
+	AccumulatedImpulse += Impulse;
 }
 
-void UEnemyMovement::ApplyAccumulatedForce(float DeltaTime)
+void UEnemyMovement::ApplyAccumulatedImpulse()
 {
-	ExternalVelocity += AccumulatedForce * DeltaTime;
-	AccumulatedForce = FVector::Zero();
+	ExternalVelocity += AccumulatedImpulse;
+	AccumulatedImpulse = FVector::Zero();
 }
