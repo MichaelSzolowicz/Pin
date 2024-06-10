@@ -34,6 +34,8 @@ void AOnlineGameMode::SpawnPlayer_Implementation(APlayerController* NewPlayer)
 	// Spawn & posses new pawn
 	if (PlayerStarts.Num() > NumPlayers)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("%s found a player start."), *NewPlayer->GetName());
+
 		// Only spawning the default pin player pawn class for now.
 		APawn* NewPawn = GetWorld()->SpawnActor<APawn>(DefaultPlayerPawn, PlayerStarts[NumPlayers]->GetActorTransform());
 		if (NewPawn)
