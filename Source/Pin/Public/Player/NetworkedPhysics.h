@@ -81,6 +81,9 @@ protected:
 		FVector AccumulatedImpulse;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Physics")
+		FVector AccumulatedAngularImpulse;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Physics")
 		FVector LinearVelocity;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Physics")
@@ -126,6 +129,9 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void AddImpulse(FVector Impulse);
+
+	UFUNCTION(BlueprintCallable)
+	void AddAngularImpulse(FVector AngularImpulse);
 
 	UFUNCTION(BlueprintCallable)
 	void AddForce(FVector Force);

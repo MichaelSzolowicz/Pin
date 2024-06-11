@@ -133,10 +133,12 @@ void UNetworkedPhysics::ResolveCollisionWithRotation(const FHitResult& Hit)
 
 	FVector Impulse = J * Hit.Normal;
 
-	LinearVelocity += InverseMass() * Impulse;
+	//LinearVelocity += InverseMass() * Impulse;
+	AddImpulse(InverseMass() * Impulse);
 
 	if (bUseAngularMovement) {
-		AngularVelocity += InverseInertia() * RVector.Cross(Impulse);
+		//AngularVelocity += InverseInertia() * RVector.Cross(Impulse);
+		AddAngularImpulse(RVector.Cross(Impulse));
 	}
 
 	ApplyFriction(Hit, Impulse);
@@ -172,10 +174,12 @@ void UNetworkedPhysics::ApplyFriction(const FHitResult& Hit, const FVector& Norm
 
 	FVector Impulse = J * Tangent;
 
-	LinearVelocity += InverseMass() * Impulse;
+	//LinearVelocity += InverseMass() * Impulse;
+	AddImpulse(Impulse);
 
 	if (bUseAngularMovement) {
-		AngularVelocity = InverseInertia() * RVector.Cross(Impulse);
+		//AngularVelocity = InverseInertia() * RVector.Cross(Impulse);
+		AddAngularImpulse(RVector.Cross(Impulse));
 
 		if (IsValid(AngularBody)) {
 			FRotator Rot = UKismetMathLibrary::RotatorFromAxisAndAngle(AngularVelocity.GetSafeNormal(), AngularVelocity.Size());
@@ -400,6 +404,10 @@ void UNetworkedPhysics::AddImpulse(FVector Impulse)
 	AccumulatedImpulse += InverseMass() * Impulse;
 }
 
+void UNetworkedPhysics::AddAngularImpulse(FVector AngularImpulse) 
+{
+	AccumulatedAngularImpulse += InverseInertia() * AngularImpulse;
+}
 
 /**
 * Add force to accumulated force.
