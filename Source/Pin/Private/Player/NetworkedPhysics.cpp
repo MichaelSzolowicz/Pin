@@ -23,8 +23,10 @@ void UNetworkedPhysics::TickComponent(float DeltaTime, enum ELevelTick TickType,
 
 	UE_LOG(LogTemp, Warning, TEXT("Apply rotation"));
 
-	LinearVelocity += AccumulatedImpulse * InverseMass();
+	LinearVelocity += AccumulatedImpulse;
+	AngularVelocity += AccumulatedAngularImpulse;
 	AccumulatedImpulse = FVector::Zero();
+	AccumulatedAngularImpulse = FVector::Zero();
 
 	UpdatePhysics(DeltaTime);
 }
@@ -91,20 +93,20 @@ void UNetworkedPhysics::PerformMove(const FMove& Move)
 
 	if (dt <= 0) return;
 
-	for (int i = 0; i < 3; i++) {
-		FVector Mask = FVector(0,0,0);
-		Mask[i]++;
-		FVector DeltaPos = LinearVelocity * dt * Mask;
+	//for (int i = 0; i < 3; i++) {
+		//FVector Mask = FVector(0,0,0);
+		//Mask[i]++;
+		FVector DeltaPos = LinearVelocity * dt; // *Mask;
 		// Update position
 		FHitResult Hit;
-		SafeMoveUpdatedComponent(DeltaPos, UpdatedComponent->GetComponentRotation(), true, Hit);
+		MoveUpdatedComponent(DeltaPos, UpdatedComponent->GetComponentRotation(), true, &Hit);
 		// Handle overlaps
 		if (Hit.IsValidBlockingHit()) {
 			ResolveCollisionWithRotation(Hit);	// Normal impulse.
-			SlideAlongSurface(DeltaPos, 1.f - Hit.Time, Hit.Normal, Hit);
+			SlideAlongSurface(DeltaPos, 1.f - Hit.Time, Hit.Normal, Hit);	// This really only helps smooth out jitter when goingg uphillat lower fps, but doesn't even entirely solve the issue
 			//ApplyFriction(Move);
 		}
-	}
+	//}
 
 	LinearVelocity += (Move.Force / Mass) * dt;
 
@@ -133,12 +135,12 @@ void UNetworkedPhysics::ResolveCollisionWithRotation(const FHitResult& Hit)
 
 	FVector Impulse = J * Hit.Normal;
 
-	//LinearVelocity += InverseMass() * Impulse;
-	AddImpulse(InverseMass() * Impulse);
+	LinearVelocity += InverseMass() * Impulse;
+	// AddImpulse(Impulse);
 
 	if (bUseAngularMovement) {
-		//AngularVelocity += InverseInertia() * RVector.Cross(Impulse);
-		AddAngularImpulse(RVector.Cross(Impulse));
+		AngularVelocity += InverseInertia() * RVector.Cross(Impulse);
+		//AddAngularImpulse(RVector.Cross(Impulse));
 	}
 
 	ApplyFriction(Hit, Impulse);
@@ -174,12 +176,11 @@ void UNetworkedPhysics::ApplyFriction(const FHitResult& Hit, const FVector& Norm
 
 	FVector Impulse = J * Tangent;
 
-	//LinearVelocity += InverseMass() * Impulse;
-	AddImpulse(Impulse);
+	LinearVelocity += InverseMass() * Impulse;
+	// AddImpulse(Impulse);
 
 	if (bUseAngularMovement) {
-		//AngularVelocity = InverseInertia() * RVector.Cross(Impulse);
-		AddAngularImpulse(RVector.Cross(Impulse));
+		AngularVelocity = InverseInertia() * RVector.Cross(Impulse);
 
 		if (IsValid(AngularBody)) {
 			FRotator Rot = UKismetMathLibrary::RotatorFromAxisAndAngle(AngularVelocity.GetSafeNormal(), AngularVelocity.Size());
@@ -404,10 +405,12 @@ void UNetworkedPhysics::AddImpulse(FVector Impulse)
 	AccumulatedImpulse += InverseMass() * Impulse;
 }
 
-void UNetworkedPhysics::AddAngularImpulse(FVector AngularImpulse) 
+
+void UNetworkedPhysics::AddAngularImpulse(FVector AngularImpulse)
 {
 	AccumulatedAngularImpulse += InverseInertia() * AngularImpulse;
 }
+
 
 /**
 * Add force to accumulated force.
