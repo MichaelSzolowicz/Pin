@@ -21,8 +21,6 @@ void UNetworkedPhysics::TickComponent(float DeltaTime, enum ELevelTick TickType,
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	UE_LOG(LogTemp, Warning, TEXT("Apply rotation"));
-
 	LinearVelocity += AccumulatedImpulse;
 	AngularVelocity += AccumulatedAngularImpulse;
 	AccumulatedImpulse = FVector::Zero();
@@ -93,20 +91,57 @@ void UNetworkedPhysics::PerformMove(const FMove& Move)
 
 	if (dt <= 0) return;
 
-	//for (int i = 0; i < 3; i++) {
-		//FVector Mask = FVector(0,0,0);
-		//Mask[i]++;
-		FVector DeltaPos = LinearVelocity * dt; // *Mask;
-		// Update position
-		FHitResult Hit;
-		MoveUpdatedComponent(DeltaPos, UpdatedComponent->GetComponentRotation(), true, &Hit);
-		// Handle overlaps
-		if (Hit.IsValidBlockingHit()) {
-			ResolveCollisionWithRotation(Hit);	// Normal impulse.
-			SlideAlongSurface(DeltaPos, 1.f - Hit.Time, Hit.Normal, Hit);	// This really only helps smooth out jitter when goingg uphillat lower fps, but doesn't even entirely solve the issue
-			//ApplyFriction(Move);
+	FVector DeltaPos = LinearVelocity * dt;
+
+	UWorld* World = GetWorld();
+	FVector SweepStart = UpdatedComponent->GetComponentLocation();
+	FVector Normal = FVector::Zero();
+
+	for (int i = 0; i < 3; i++) {
+		FVector Mask = FVector(0, 0, 0);
+		Mask[i]++;
+		FVector SweepEnd = SweepStart + DeltaPos * Mask;
+		FComponentQueryParams Params = FComponentQueryParams();
+		TArray<FHitResult> OutHits;
+
+		const bool bBlockingHit = World->ComponentSweepMulti(OutHits, Cast<UPrimitiveComponent>(UpdatedComponent), SweepStart, SweepEnd, UpdatedComponent->GetComponentRotation(), Params);
+
+		if (bBlockingHit) {
+			int32 BlockingHitIndex = -1;
+			float BlockingHitNormalDotDelta = UE_BIG_NUMBER;
+			for (int HitIndex = 0; HitIndex < OutHits.Num(); HitIndex++) {
+				const FHitResult& TestHit = OutHits[HitIndex];
+
+				if (TestHit.bBlockingHit) {
+					if (TestHit.bStartPenetrating) {
+						// We may have multiple initial hits, and want to choose the one with the normal most opposed to our movement.
+						const float NormalDotDelta = (TestHit.ImpactNormal | (DeltaPos * Mask));
+						if (NormalDotDelta < BlockingHitNormalDotDelta)
+						{
+							BlockingHitNormalDotDelta = NormalDotDelta;
+							BlockingHitIndex = HitIndex;
+						}
+					}
+					else if (BlockingHitIndex == -1) {
+						BlockingHitIndex = HitIndex;
+						break;
+					}
+				}
+			}
+
+			FHitResult BlockingHit = OutHits[BlockingHitIndex];
+			ResolveCollisionWithRotation(BlockingHit.ImpactPoint, BlockingHit.ImpactNormal);
 		}
-	//}
+	}
+
+	// Update position
+	FHitResult Hit;
+	MoveUpdatedComponent(DeltaPos, UpdatedComponent->GetComponentRotation(), true, &Hit);
+	// Handle overlaps
+	if (Hit.IsValidBlockingHit()) {
+		// ResolveCollisionWithRotation(Hit.ImpactPoint, Hit.Normal);	// Normal impulse.
+		SlideAlongSurface(DeltaPos, 1.f - Hit.Time, Hit.Normal, Hit);	// This really only helps smooth out jitter when goingg uphillat lower fps, but doesn't even entirely solve the issue
+	}
 
 	LinearVelocity += (Move.Force / Mass) * dt;
 
@@ -120,20 +155,20 @@ void UNetworkedPhysics::PerformMove(const FMove& Move)
 * Currently assumes the other object is static and has infinite mass.
 * @param Hit The hit structure to resolve for.
 */
-void UNetworkedPhysics::ResolveCollisionWithRotation(const FHitResult& Hit) 
+void UNetworkedPhysics::ResolveCollisionWithRotation(const FVector& ImpactPoint, const FVector& Normal) 
 {
-	FVector RVector = Hit.ImpactPoint - UpdatedComponent->GetComponentLocation();
+	FVector RVector = ImpactPoint - UpdatedComponent->GetComponentLocation();
 
 	FVector Vel = LinearVelocity + AngularVelocity.Cross(RVector);
 
-	float J = Vel.Dot(Hit.Normal) * -(1 + FMath::Min(restitution, .0f));
+	float J = Vel.Dot(Normal) * -(1 + FMath::Min(restitution, .5f));
 
 	J /= InverseMass() + 
 		FVector::DotProduct(FVector::CrossProduct(InverseInertia() * 
-			FVector::CrossProduct(RVector, Hit.Normal), RVector),
-			Hit.Normal);
+			FVector::CrossProduct(RVector, Normal), RVector),
+			Normal);
 
-	FVector Impulse = J * Hit.Normal;
+	FVector Impulse = J * Normal;
 
 	LinearVelocity += InverseMass() * Impulse;
 	// AddImpulse(Impulse);
@@ -143,7 +178,7 @@ void UNetworkedPhysics::ResolveCollisionWithRotation(const FHitResult& Hit)
 		//AddAngularImpulse(RVector.Cross(Impulse));
 	}
 
-	ApplyFriction(Hit, Impulse);
+	ApplyFriction(ImpactPoint, Normal, Impulse);
 }
 
 /**
@@ -151,11 +186,11 @@ void UNetworkedPhysics::ResolveCollisionWithRotation(const FHitResult& Hit)
 * Currently assumes the other object is static and has infinite mass.
 * @param Hit the hit structre to apply friction for.
 */
-void UNetworkedPhysics::ApplyFriction(const FHitResult& Hit, const FVector& NormalForce)
+void UNetworkedPhysics::ApplyFriction(const FVector& ImpactPoint, const FVector& Normal, const FVector& NormalForce)
 {
-	FVector RVector = Hit.ImpactPoint - UpdatedComponent->GetComponentLocation();
+	FVector RVector = ImpactPoint - UpdatedComponent->GetComponentLocation();
 	
-	FVector Tangent = LinearVelocity - LinearVelocity.Dot(Hit.Normal) * Hit.Normal;
+	FVector Tangent = LinearVelocity - LinearVelocity.Dot(Normal) * Normal;
 	Tangent.Normalize();
 
 	FVector Vel = LinearVelocity + AngularVelocity.Cross(RVector);
