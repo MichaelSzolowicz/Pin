@@ -91,6 +91,8 @@ void UNetworkedPhysics::PerformMove(const FMove& Move)
 
 	if (dt <= 0) return;
 
+	LinearVelocity += (Move.Force / Mass) * dt;
+
 	FVector DeltaPos = LinearVelocity * dt;
 
 	UWorld* World = GetWorld();
@@ -111,6 +113,12 @@ void UNetworkedPhysics::PerformMove(const FMove& Move)
 			float BlockingHitNormalDotDelta = UE_BIG_NUMBER;
 			for (int HitIndex = 0; HitIndex < OutHits.Num(); HitIndex++) {
 				const FHitResult& TestHit = OutHits[HitIndex];
+
+				// UE_LOG(LogTemp, Warning,TEXT("Hit: %s"), *TestHit.GetComponent()->GetFullName());
+				// Maybe I should have some kind of aggragate of the normals instead of picking one?
+
+				// Or maybe I should raycast to get if we are grounded and the floor normal, then project these axies into the space of the floor? So this move-by-axis always thinks we are moving on flat ground.
+				// But you could collide with a wall in the air, so don't think of this as grounded only functionality.
 
 				if (TestHit.bBlockingHit) {
 					if (TestHit.bStartPenetrating) {
@@ -142,8 +150,6 @@ void UNetworkedPhysics::PerformMove(const FMove& Move)
 		// ResolveCollisionWithRotation(Hit.ImpactPoint, Hit.Normal);	// Normal impulse.
 		SlideAlongSurface(DeltaPos, 1.f - Hit.Time, Hit.Normal, Hit);	// This really only helps smooth out jitter when goingg uphillat lower fps, but doesn't even entirely solve the issue
 	}
-
-	LinearVelocity += (Move.Force / Mass) * dt;
 
 	if (bShouldUpdateOrientation) {
 		ApplyLookAtOrientation();
