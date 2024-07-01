@@ -59,7 +59,7 @@ protected:
 		float Mass = 100.f;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Physics")
-		float FrictionConstant = .6f;
+		float FrictionConstant = .0f;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Physics")
 		float restitution = 1.f;
@@ -192,14 +192,14 @@ protected:
 	* Currently assumes the other object is static and has infinite mass.
 	* @param Hit The hit structure to resolve for.
 	*/
-	void ResolveCollisionWithRotation(const FVector& ImpactPoint, const FVector& Normal);
+	void ResolveCollisionWithRotation(const FVector& ImpactPoint, const FVector& Normal, const FVector& Location);
 
 	/**
 	* Applies friction impulse.
 	* Currently assumes the other object is static and has infinite mass.
 	* @param Hit the hit structre to apply friction for.
 	*/
-	void ApplyFriction(const FVector& ImpactPoint, const FVector& Normal, const FVector& NormalForce);
+	void ApplyFriction(const FVector& ImpactPoint, const FVector& Normal, const FVector& NormalForce, const FVector& Location);
 
 	/**
 	* RPC to execute and validate a move on the server.

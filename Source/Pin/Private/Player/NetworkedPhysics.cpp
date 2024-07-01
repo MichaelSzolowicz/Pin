@@ -2,6 +2,7 @@
 
 #include "Components/SphereComponent.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "Kismet/KismetSystemLibrary.h"
 
 #include "DrawDebugHelpers.h"
 
@@ -94,51 +95,35 @@ void UNetworkedPhysics::PerformMove(const FMove& Move)
 	LinearVelocity += (Move.Force / Mass) * dt;
 
 	FVector DeltaPos = LinearVelocity * dt;
-
-	UWorld* World = GetWorld();
 	FVector SweepStart = UpdatedComponent->GetComponentLocation();
-	FVector Normal = FVector::Zero();
+	FVector SweepEnd = SweepStart + DeltaPos;
 
-	for (int i = 0; i < 3; i++) {
-		FVector Mask = FVector(0, 0, 0);
-		Mask[i]++;
-		FVector SweepEnd = SweepStart + DeltaPos * Mask;
-		FComponentQueryParams Params = FComponentQueryParams();
-		TArray<FHitResult> OutHits;
+	//GEngine->AddOnScreenDebugMessage(-1, 1.0f, FColor::Yellow, FString::Printf(TEXT("DeltaPos: %s"), *DeltaPos.ToString()));
 
-		const bool bBlockingHit = World->ComponentSweepMulti(OutHits, Cast<UPrimitiveComponent>(UpdatedComponent), SweepStart, SweepEnd, UpdatedComponent->GetComponentRotation(), Params);
+	USphereComponent* Sphere = Cast<USphereComponent>(UpdatedComponent);
+	if (IsValid(Sphere)) {
+		TArray<FHitResult> Hits;
+		FComponentQueryParams Params;
+		TArray<AActor*> ActorsToIgnore;
+		ActorsToIgnore.Add(GetOwner());
 
-		if (bBlockingHit) {
-			int32 BlockingHitIndex = -1;
-			float BlockingHitNormalDotDelta = UE_BIG_NUMBER;
-			for (int HitIndex = 0; HitIndex < OutHits.Num(); HitIndex++) {
-				const FHitResult& TestHit = OutHits[HitIndex];
+		UKismetSystemLibrary::SphereTraceMulti(GetWorld(), SweepStart, SweepEnd, Sphere->GetScaledSphereRadius(), ETraceTypeQuery::TraceTypeQuery1, false,
+			ActorsToIgnore, EDrawDebugTrace::ForOneFrame, Hits, true);
 
-				// UE_LOG(LogTemp, Warning,TEXT("Hit: %s"), *TestHit.GetComponent()->GetFullName());
-				// Maybe I should have some kind of aggragate of the normals instead of picking one?
+		FVector Normal = FVector::Zero();
 
-				// Or maybe I should raycast to get if we are grounded and the floor normal, then project these axies into the space of the floor? So this move-by-axis always thinks we are moving on flat ground.
-				// But you could collide with a wall in the air, so don't think of this as grounded only functionality.
+		for (int HitIndex = 0; HitIndex < Hits.Num(); HitIndex++) {
 
-				if (TestHit.bBlockingHit) {
-					if (TestHit.bStartPenetrating) {
-						// We may have multiple initial hits, and want to choose the one with the normal most opposed to our movement.
-						const float NormalDotDelta = (TestHit.ImpactNormal | (DeltaPos * Mask));
-						if (NormalDotDelta < BlockingHitNormalDotDelta)
-						{
-							BlockingHitNormalDotDelta = NormalDotDelta;
-							BlockingHitIndex = HitIndex;
-						}
-					}
-					else if (BlockingHitIndex == -1) {
-						BlockingHitIndex = HitIndex;
-						break;
-					}
-				}
-			}
 
-			FHitResult BlockingHit = OutHits[BlockingHitIndex];
-			ResolveCollisionWithRotation(BlockingHit.ImpactPoint, BlockingHit.ImpactNormal);
+			FHitResult TestHit = Hits[HitIndex];
+			Normal = TestHit.Normal;
+			FVector Point = TestHit.ImpactPoint;
+			Normal.Normalize();
+
+			DrawDebugLine(GetWorld(), Point, Point + Normal * 100, FColor::Yellow, false, .16f);
+			DrawDebugPoint(GetWorld(), Point, 10, FColor::Yellow, false, .16f);
+
+			ResolveCollisionWithRotation(Point, Normal, SweepEnd);
 		}
 	}
 
@@ -147,9 +132,12 @@ void UNetworkedPhysics::PerformMove(const FMove& Move)
 	MoveUpdatedComponent(DeltaPos, UpdatedComponent->GetComponentRotation(), true, &Hit);
 	// Handle overlaps
 	if (Hit.IsValidBlockingHit()) {
-		// ResolveCollisionWithRotation(Hit.ImpactPoint, Hit.Normal);	// Normal impulse.
+		DrawDebugLine(GetWorld(), Hit.ImpactPoint, Hit.ImpactPoint + Hit.ImpactNormal * 150, FColor::Blue, false, .16f);
+		//ResolveCollisionWithRotation(Hit.ImpactPoint, Hit.ImpactNormal, UpdatedComponent->GetComponentLocation());	// Normal impulse.
 		SlideAlongSurface(DeltaPos, 1.f - Hit.Time, Hit.Normal, Hit);	// This really only helps smooth out jitter when goingg uphillat lower fps, but doesn't even entirely solve the issue
 	}
+
+	//LinearVelocity = (UpdatedComponent->GetComponentLocation() - SweepStart) / dt;
 
 	if (bShouldUpdateOrientation) {
 		ApplyLookAtOrientation();
@@ -161,13 +149,13 @@ void UNetworkedPhysics::PerformMove(const FMove& Move)
 * Currently assumes the other object is static and has infinite mass.
 * @param Hit The hit structure to resolve for.
 */
-void UNetworkedPhysics::ResolveCollisionWithRotation(const FVector& ImpactPoint, const FVector& Normal) 
+void UNetworkedPhysics::ResolveCollisionWithRotation(const FVector& ImpactPoint, const FVector& Normal, const FVector& Location) 
 {
-	FVector RVector = ImpactPoint - UpdatedComponent->GetComponentLocation();
+	FVector RVector = -Normal;	// TBH it is late and I do not know why this gives better results than [ImpactPoint - Location] when then latter gives better results in the friction func...
 
 	FVector Vel = LinearVelocity + AngularVelocity.Cross(RVector);
 
-	float J = Vel.Dot(Normal) * -(1 + FMath::Min(restitution, .5f));
+	float J = Vel.Dot(Normal) * -(1 + FMath::Min(restitution, 1.0f));
 
 	J /= InverseMass() + 
 		FVector::DotProduct(FVector::CrossProduct(InverseInertia() * 
@@ -184,7 +172,7 @@ void UNetworkedPhysics::ResolveCollisionWithRotation(const FVector& ImpactPoint,
 		//AddAngularImpulse(RVector.Cross(Impulse));
 	}
 
-	ApplyFriction(ImpactPoint, Normal, Impulse);
+	ApplyFriction(ImpactPoint, Normal, Impulse, Location);
 }
 
 /**
@@ -192,9 +180,9 @@ void UNetworkedPhysics::ResolveCollisionWithRotation(const FVector& ImpactPoint,
 * Currently assumes the other object is static and has infinite mass.
 * @param Hit the hit structre to apply friction for.
 */
-void UNetworkedPhysics::ApplyFriction(const FVector& ImpactPoint, const FVector& Normal, const FVector& NormalForce)
+void UNetworkedPhysics::ApplyFriction(const FVector& ImpactPoint, const FVector& Normal, const FVector& NormalForce, const FVector& Location)
 {
-	FVector RVector = ImpactPoint - UpdatedComponent->GetComponentLocation();
+	FVector RVector = ImpactPoint - Location;
 	
 	FVector Tangent = LinearVelocity - LinearVelocity.Dot(Normal) * Normal;
 	Tangent.Normalize();
